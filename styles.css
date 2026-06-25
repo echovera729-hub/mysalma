@@ -1121,6 +1121,14 @@ a { color: inherit; }
   .post-foot-btn { padding: 9px 9px; gap: 5px; }
   .post-reactions { min-width: 0; }
 
+  /* Composer bar: drop the inline action shortcuts (the full composer has them);
+     keep the prompt on one tidy line so it can't squeeze into a column */
+  .composer-trigger { gap: 12px; padding: 14px 16px; }
+  .composer-trigger-actions { display: none; }
+  .composer-trigger-input {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  }
+
   /* Tweaks panel sits above the bottom nav */
   .twk-panel { bottom: 84px !important; right: 10px !important; }
 }
