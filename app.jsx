@@ -184,6 +184,16 @@ const App = () => {
   // Boot the data store once (loads localStorage, or connects Supabase + checks session)
   useEffectApp(() => { Store.init(); }, []);
 
+  // Home-screen shortcuts (manifest): ?screen=shift jumps to a tab, ?action=compose opens the composer
+  useEffectApp(() => {
+    try {
+      const params = new URLSearchParams(location.search);
+      const screen = params.get('screen');
+      if (screen && NAV.some(n => n.id === screen)) setPage(screen);
+      if (params.get('action') === 'compose') setShowCompose(true);
+    } catch (e) {}
+  }, []);
+
   // Apply tweak side-effects (CSS vars, fonts, density)
   useEffectApp(() => {
     const root = document.documentElement;

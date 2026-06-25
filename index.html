@@ -2,8 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MySalma — a social home for our hospital</title>
+
+<!-- ───────── PWA: installable, fullscreen on Android & iOS ───────── -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2BA39A">
+<meta name="description" content="The social home for our hospital — share moments, send Bright Spots, celebrate wins, and look out for each other.">
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<!-- iOS: add-to-home-screen, fullscreen, status bar -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MySalma">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,6 +44,76 @@
 </template>
 
 <div id="root"></div>
+
+<!-- ───────── PWA install banner (Android prompt + iOS hint) ───────── -->
+<div id="pwa-install" class="pwa-install" role="dialog" aria-label="Install MySalma">
+  <div class="pwa-install-icon">M<span style="opacity:.7">s</span></div>
+  <div class="pwa-install-body">
+    <div class="pwa-install-title">Install MySalma</div>
+    <div class="pwa-install-sub" id="pwa-install-sub">Add it to your home screen for a fullscreen, app-like experience.</div>
+  </div>
+  <div class="pwa-install-actions" id="pwa-install-actions">
+    <button class="btn btn-primary btn-sm" id="pwa-install-btn">Install</button>
+  </div>
+  <button class="pwa-install-x" id="pwa-install-close" aria-label="Dismiss">&times;</button>
+</div>
+
+<script>
+(function () {
+  var KEY = 'mysalma_install_dismissed';
+  var banner = document.getElementById('pwa-install');
+  var sub = document.getElementById('pwa-install-sub');
+  var actions = document.getElementById('pwa-install-actions');
+  var installBtn = document.getElementById('pwa-install-btn');
+  var closeBtn = document.getElementById('pwa-install-close');
+  var deferred = null;
+
+  function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+  function dismissed() { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
+  function remember() { try { localStorage.setItem(KEY, '1'); } catch (e) {} }
+  function show() { banner.classList.add('show'); }
+  function hide() { banner.classList.remove('show'); }
+
+  closeBtn.addEventListener('click', function () { hide(); remember(); });
+
+  // Already installed, or previously dismissed → do nothing.
+  if (isStandalone() || dismissed()) return;
+
+  // Android / Chrome / Edge: a real install prompt is available.
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferred = e;
+    setTimeout(show, 2500);
+  });
+  installBtn.addEventListener('click', function () {
+    if (!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.finally(function () { deferred = null; hide(); remember(); });
+  });
+  window.addEventListener('appinstalled', function () { hide(); remember(); });
+
+  // iOS Safari: no install event — show the "Add to Home Screen" steps instead.
+  var ua = window.navigator.userAgent;
+  var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  var isiOSSafari = isIOS && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+  if (isiOSSafari) {
+    sub.innerHTML = 'Tap the Share button <span class="pwa-ios-step">&#x2191;</span> then choose <b>“Add to Home Screen.”</b>';
+    actions.style.display = 'none';
+    setTimeout(show, 2500);
+  }
+})();
+</script>
+
+<!-- Register the service worker (enables install + offline). Harmless on http://localhost; requires https in production, which GitHub Pages provides. -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('[MySalma] SW registration failed:', e); });
+    });
+  }
+</script>
 
 <script type="text/babel" src="tweaks-panel.jsx"></script>
 <script type="text/babel" src="data.jsx"></script>

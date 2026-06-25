@@ -1166,3 +1166,40 @@ a { color: inherit; }
 .more-row.active { background: var(--teal-tint); color: var(--teal-deep); }
 .more-row svg { width: 22px; height: 22px; }
 .more-row .more-dot { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); }
+
+/* ----------- PWA install banner ----------- */
+.pwa-install {
+  position: fixed; z-index: 300;
+  left: 50%; bottom: 22px; transform: translateX(-50%) translateY(140%);
+  width: min(440px, calc(100vw - 24px));
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+  padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px;
+  opacity: 0; transition: transform .35s cubic-bezier(.2,.7,.3,1), opacity .35s;
+}
+.pwa-install.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.pwa-install-icon {
+  width: 46px; height: 46px; border-radius: 13px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--teal), var(--teal-deep));
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-family: var(--font-display); font-weight: 700; font-size: 21px; line-height: 1;
+}
+.pwa-install-body { flex: 1; min-width: 0; }
+.pwa-install-title { font-weight: 700; font-size: 14.5px; color: var(--navy); }
+.pwa-install-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 1px; line-height: 1.4; }
+.pwa-install-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pwa-install-x {
+  width: 30px; height: 30px; border-radius: 50%; border: 0; background: transparent;
+  color: var(--ink-soft); cursor: pointer; display: grid; place-items: center; font-size: 18px; flex-shrink: 0;
+}
+.pwa-install-x:hover { background: var(--cream-deep); }
+.pwa-ios-step {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 6px; background: var(--teal-tint);
+  color: var(--teal-deep); vertical-align: middle; margin: 0 2px;
+}
+@media (max-width: 680px) {
+  .pwa-install { bottom: 88px; }
+  .pwa-install.full { flex-wrap: wrap; }
+}
