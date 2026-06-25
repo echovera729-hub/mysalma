@@ -216,8 +216,8 @@ const ProfileEditor = ({ onClose }) => {
   const pick = async (file, key) => { try { Store.setProfile({ [key]: await readScaledImage(file, key === 'avatar' ? 512 : 1600) }); } catch (e) {} };
   const save = () => { Store.setProfile({ name, role, team, tagline, bio }); onClose(); };
   return (
-    <div style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
-      <div style={{width:'min(560px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
+    <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
+      <div className="modal-sheet" style={{width:'min(560px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18}}>
           <h2 style={{fontSize:22}}>Edit profile</h2>
           <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
@@ -292,7 +292,7 @@ const ProfileScreen = () => {
         ))}
       </div>
 
-      <div style={{display:'grid', gridTemplateColumns:'1fr 320px', gap:24}}>
+      <div className="profile-content-grid" style={{display:'grid', gridTemplateColumns:'1fr 320px', gap:24}}>
         <div style={{display:'flex', flexDirection:'column', gap:16, minWidth:0}}>
           {tab === 'moments' && myPosts.map(p => <Post key={p.id} post={p} />)}
           {tab === 'moments' && myPosts.length === 0 && (
@@ -456,8 +456,8 @@ const EventForm = ({ onClose }) => {
     onClose();
   };
   return (
-    <div style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
-      <div style={{width:'min(520px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
+    <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
+      <div className="modal-sheet" style={{width:'min(520px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
           <h2 style={{fontSize:22}}>New event</h2>
           <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>

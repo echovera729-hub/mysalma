@@ -51,11 +51,11 @@ const ComposerScreen = ({ onClose }) => {
   ];
 
   return (
-    <div style={{
+    <div className="modal-overlay" style={{
       position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)',
       display:'grid', placeItems:'center', padding:20, zIndex:200
     }} onClick={onClose}>
-      <div style={{
+      <div className="modal-sheet" style={{
         width:'min(640px, 100%)', maxHeight:'90vh', overflow:'auto',
         background:'var(--cream)', borderRadius:24, padding:28,
         boxShadow:'0 30px 60px rgba(0,0,0,.3)', border:'1px solid var(--line)'

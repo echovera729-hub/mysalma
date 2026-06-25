@@ -3,20 +3,42 @@
 const { useState: useStateApp, useEffect: useEffectApp } = React;
 
 const NAV = [
-  { id: 'home',     label: 'Home',          icon: 'home' },
-  { id: 'shift',    label: 'On Shift',      icon: 'roster' },
-  { id: 'search',   label: 'Discover',      icon: 'search' },
+  { id: 'home',     label: 'Home',          icon: 'home',     primary: true },
+  { id: 'shift',    label: 'On Shift',      icon: 'roster',   primary: true },
+  { id: 'search',   label: 'Discover',      icon: 'search',   primary: true },
   { id: 'crews',    label: 'Crews',         icon: 'crew' },
-  { id: 'events',   label: 'Events',        icon: 'calendar' },
+  { id: 'events',   label: 'Events',        icon: 'calendar', primary: true },
   { id: 'chat',     label: 'Chat',          icon: 'chat' },
   { id: 'notifs',   label: 'Notifications', icon: 'bell' },
-  { id: 'profile',  label: 'My profile',    icon: 'spark' },
+  { id: 'profile',  label: 'My profile',    icon: 'spark',    primary: true },
   { id: 'settings', label: 'Settings',      icon: 'settings' },
 ];
+
+// Bottom-bar order on phones (5 primary items, left-to-right)
+const MOBILE_NAV = ['home', 'shift', 'search', 'events', 'profile'];
+const MORE_NAV = ['crews', 'chat', 'notifs', 'settings'];
+
+// ---- Mobile top bar (phones only; hidden by CSS on larger screens) ----
+const MobileTopBar = ({ page, setPage, onCompose }) => (
+  <header className="mobile-topbar">
+    <div className="brand" onClick={() => setPage('home')} style={{cursor:'pointer'}}>
+      <div className="brand-mark" style={{width:32, height:32, fontSize:15}}>M<span style={{opacity:.7}}>s</span></div>
+      <div className="brand-name" style={{fontSize:19}}>My<span className="dot">·</span>Salma</div>
+    </div>
+    <div className="mobile-topbar-actions">
+      <button className={`topbar-btn ${page==='notifs'?'active':''}`} onClick={() => setPage('notifs')} aria-label="Notifications"><Icon name="bell"/></button>
+      <button className={`topbar-btn ${page==='chat'?'active':''}`} onClick={() => setPage('chat')} aria-label="Chat"><Icon name="chat"/></button>
+      <button className="topbar-btn topbar-compose" onClick={onCompose} aria-label="New post"><Icon name="plus"/></button>
+    </div>
+  </header>
+);
 
 const Sidebar = ({ page, setPage, onCompose }) => {
   useStore();
   const prof = Store.profile();
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  const go = id => { setPage(id); setMoreOpen(false); };
+  const moreActive = MORE_NAV.includes(page);
   return (
   <aside className="rail">
     <div className="brand">
@@ -30,12 +52,18 @@ const Sidebar = ({ page, setPage, onCompose }) => {
 
     <nav className="nav">
       {NAV.map(n => (
-        <button key={n.id} className={`nav-item ${page===n.id?'active':''}`} onClick={() => setPage(n.id)}>
+        <button key={n.id} data-primary={n.primary ? '1' : undefined}
+          className={`nav-item ${page===n.id?'active':''}`} onClick={() => go(n.id)}>
           <Icon name={n.icon} className="nav-item-icon"/>
           <span className="nav-label">{n.label}</span>
           {n.meta && <span className="nav-item-meta">{n.meta}</span>}
         </button>
       ))}
+      {/* Phone-only “More” entry into the overflow sheet */}
+      <button className={`nav-item nav-more ${moreActive?'active':''}`} onClick={() => setMoreOpen(true)}>
+        <Icon name="more" className="nav-item-icon"/>
+        <span className="nav-label">More</span>
+      </button>
     </nav>
 
     <div className="me-card" onClick={() => setPage('profile')}>
@@ -45,6 +73,32 @@ const Sidebar = ({ page, setPage, onCompose }) => {
         <div className="me-card-role">{prof.role}</div>
       </div>
     </div>
+
+    {moreOpen && (
+      <div className="more-overlay" onClick={() => setMoreOpen(false)}>
+        <div className="more-sheet" onClick={e => e.stopPropagation()}>
+          <div className="more-grip"></div>
+          <div className="more-head">
+            <div style={{display:'flex', alignItems:'center', gap:10}}>
+              <Avatar person="me" size="md" />
+              <div><div style={{fontWeight:600, color:'var(--navy)'}}>{prof.name}</div><div style={{fontSize:12, color:'var(--ink-soft)'}}>{prof.role}</div></div>
+            </div>
+            <button className="btn btn-icon btn-ghost" onClick={() => setMoreOpen(false)}><Icon name="close"/></button>
+          </div>
+          <button className="compose-btn" style={{width:'100%', marginBottom:6}} onClick={() => { onCompose(); setMoreOpen(false); }}><Icon name="plus"/> New post</button>
+          {MORE_NAV.map(id => {
+            const n = NAV.find(x => x.id === id);
+            return (
+              <button key={id} className={`more-row ${page===id?'active':''}`} onClick={() => go(id)}>
+                <Icon name={n.icon}/>
+                <span>{n.label}</span>
+                {page===id && <span className="more-dot"></span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    )}
   </aside>
   );
 };
@@ -175,6 +229,7 @@ const App = () => {
 
   return (
     <>
+      <MobileTopBar page={page} setPage={setPage} onCompose={() => setShowCompose(true)} />
       <div className="app">
         <Sidebar page={page} setPage={setPage} onCompose={() => setShowCompose(true)} />
         <main className="main">

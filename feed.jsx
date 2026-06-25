@@ -124,10 +124,10 @@ const Post = ({ post }) => {
           {commentCount > 0 && <span style={{fontSize:12.5, color:'var(--ink-soft)', marginLeft: total>0?4:0, cursor:'pointer'}} onClick={()=>setShowComments(true)}>{commentCount} comment{commentCount!==1?'s':''}</span>}
         </div>
         <button className={`post-foot-btn ${liked ? 'liked' : ''}`} onClick={() => Store.toggleReaction(id, '❤️')}>
-          <Icon name="heart"/> {liked ? 'Loved' : 'Love'}
+          <Icon name="heart"/> <span className="pfb-label">{liked ? 'Loved' : 'Love'}</span>
         </button>
-        <button className="post-foot-btn" onClick={() => setShowComments(s => !s)}><Icon name="comment"/> Reply</button>
-        <button className={`post-foot-btn ${starred ? 'liked' : ''}`} onClick={() => Store.toggleReaction(id, '✦')}><Icon name="star"/> Bright Spot</button>
+        <button className="post-foot-btn" onClick={() => setShowComments(s => !s)}><Icon name="comment"/> <span className="pfb-label">Reply</span></button>
+        <button className={`post-foot-btn ${starred ? 'liked' : ''}`} onClick={() => Store.toggleReaction(id, '✦')}><Icon name="star"/> <span className="pfb-label">Bright Spot</span></button>
         <button className="post-foot-btn" style={saved ? {color:'var(--teal-deep)'} : {}} onClick={() => Store.toggleSave(id)}><Icon name="bookmark"/></button>
       </div>
 

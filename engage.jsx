@@ -112,8 +112,8 @@ const SwapForm = ({ onClose }) => {
   const lbl = { display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'14px 0 6px' };
   const submit = () => { if (!need.trim()) return; Store.addSwap({ need: need.trim(), offer: offer.trim() || 'Open to options', note: note.trim(), urgency, team }); onClose(); };
   return (
-    <div style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
-      <div style={{width:'min(520px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
+    <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
+      <div className="modal-sheet" style={{width:'min(520px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
           <h2 style={{fontSize:22}}>Post a shift swap</h2>
           <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
