@@ -19,8 +19,8 @@
 //  (single user, data saved only in this browser — great for demos).
 // ════════════════════════════════════════════════════════════════
 
-window.SUPABASE_URL      = 'YOUR_SUPABASE_URL';        // e.g. https://abcdefgh.supabase.co
-window.SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';   // the long "anon public" key
+window.SUPABASE_URL      = 'https://qtlzxfupieqweqnehnfu.supabase.co';
+window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0bHp4ZnVwaWVxd2VxbmVobmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNDI5OTEsImV4cCI6MjA5NzkxODk5MX0.ZLK8e05r_MCVVoBxsXN878tdMfN7Dj3pHiuacFOxThQ';
 
 // --- do not edit below this line ---------------------------------
 window.SUPABASE_ENABLED = !!(
