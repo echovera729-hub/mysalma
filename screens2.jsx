@@ -502,6 +502,25 @@ const SettingsScreen = () => {
         <div className="card card-pad" style={{padding:24}}>
           {section === 'account' && (<>
             <h3 style={{fontSize:20, marginBottom:18}}>Account</h3>
+            {Store.mode === 'supabase' && (() => {
+              const admin = Store.isAdmin();
+              const status = Store.myStatus();
+              const stMeta = { approved: ['✓ Approved', 'pill-teal'], pending: ['⏳ Pending', 'pill-butter'], rejected: ['Rejected', 'pill-blush'] }[status] || ['—', 'pill'];
+              return (
+                <div style={{display:'flex', alignItems:'center', gap:14, padding:'14px 16px', marginBottom:20, borderRadius:'var(--r-md)',
+                  background: admin ? 'linear-gradient(135deg, var(--teal-tint), var(--mint-soft))' : 'var(--cream)', border:'1px solid var(--line)'}}>
+                  <div style={{width:46, height:46, borderRadius:12, flexShrink:0, display:'grid', placeItems:'center', fontSize:22,
+                    background: admin ? 'var(--navy)' : 'var(--paper)', color: admin ? 'white' : 'var(--ink-soft)', border: admin ? 'none' : '1px solid var(--line)'}}>
+                    {admin ? '🛡️' : '🪪'}
+                  </div>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontWeight:700, fontSize:15, color:'var(--navy)'}}>{admin ? 'Administrator' : 'Team member'}</div>
+                    <div style={{fontSize:12.5, color:'var(--ink-soft)'}}>{admin ? 'You can approve or reject new sign-ups in the Approvals tab.' : 'Standard member access.'}</div>
+                  </div>
+                  <span className={`pill ${stMeta[1]}`}>{stMeta[0]}</span>
+                </div>
+              );
+            })()}
             <div style={{display:'flex', gap:18, alignItems:'center', marginBottom:24}}>
               <Avatar person="me" size="xl" />
               <div>
