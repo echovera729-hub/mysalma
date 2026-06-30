@@ -45,6 +45,9 @@ const AuthScreen = () => {
 
         <h2 className="onboard-title" style={{fontSize:26}}>{mode === 'signin' ? 'Welcome back' : 'Join your team'}</h2>
         <p className="onboard-sub">{mode === 'signin' ? 'Sign in to your hospital’s space.' : 'Create your account — internal staff only.'}</p>
+        {mode === 'signup' && (
+          <div className="banner" style={{marginTop:12}}>🔐 New accounts are reviewed by an administrator before access is granted.</div>
+        )}
 
         {mode === 'signup' && (<>
           <div style={{display:'flex', gap:12}}>

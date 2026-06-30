@@ -6,7 +6,7 @@
      • Supabase API / realtime                           → never cached (always live)
 */
 
-const CACHE = 'mysalma-v1';
+const CACHE = 'mysalma-v3';  // ⬆️ BUMP THIS on every code change, or installed apps keep running old cached JS.
 
 // Same-origin files that make up the app shell (relative to this SW's scope).
 const PRECACHE = [
@@ -24,6 +24,7 @@ const PRECACHE = [
   './screens.jsx',
   './screens2.jsx',
   './auth.jsx',
+  './admin.jsx',
   './app.jsx',
   './icon-192.png',
   './icon-512.png',

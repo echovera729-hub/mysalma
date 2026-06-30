@@ -112,6 +112,14 @@
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('[MySalma] SW registration failed:', e); });
     });
+    // When a new service worker takes control (after a deploy), reload once so
+    // everyone runs the latest code instead of stale cached JS.
+    var __reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (__reloading) return;
+      __reloading = true;
+      window.location.reload();
+    });
   }
 </script>
 
@@ -124,6 +132,7 @@
 <script type="text/babel" src="screens.jsx"></script>
 <script type="text/babel" src="screens2.jsx"></script>
 <script type="text/babel" src="auth.jsx"></script>
+<script type="text/babel" src="admin.jsx"></script>
 <script type="text/babel" src="app.jsx"></script>
 
 </body>

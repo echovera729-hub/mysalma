@@ -39,6 +39,7 @@ const Icon = ({ name, size = 18, ...p }) => {
     swap:      <><path d="M7 4L3 8l4 4"/><path d="M3 8h12a4 4 0 014 4"/><path d="M17 20l4-4-4-4"/><path d="M21 16H9a4 4 0 01-4-4"/></>,
     roster:    <><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 3v3h6V3"/><path d="M8 11h.01M8 15h.01"/><path d="M12 11h4M12 15h4"/></>,
     coffee:    <><path d="M4 8h13v5a4 4 0 01-4 4H8a4 4 0 01-4-4V8z"/><path d="M17 9h2a2 2 0 010 4h-2"/><path d="M7 2v2M11 2v2"/></>,
+    shield:    <><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"

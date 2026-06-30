@@ -10,6 +10,7 @@ const NAV = [
   { id: 'events',   label: 'Events',        icon: 'calendar', primary: true },
   { id: 'chat',     label: 'Chat',          icon: 'chat' },
   { id: 'notifs',   label: 'Notifications', icon: 'bell' },
+  { id: 'admin',    label: 'Approvals',     icon: 'shield', admin: true },
   { id: 'profile',  label: 'My profile',    icon: 'spark',    primary: true },
   { id: 'settings', label: 'Settings',      icon: 'settings' },
 ];
@@ -51,14 +52,17 @@ const Sidebar = ({ page, setPage, onCompose }) => {
     </button>
 
     <nav className="nav">
-      {NAV.map(n => (
+      {NAV.filter(n => !n.admin || Store.isAdmin()).map(n => {
+        const meta = n.id === 'admin' ? (Store.pendingCount() || null) : n.meta;
+        return (
         <button key={n.id} data-primary={n.primary ? '1' : undefined}
           className={`nav-item ${page===n.id?'active':''}`} onClick={() => go(n.id)}>
           <Icon name={n.icon} className="nav-item-icon"/>
           <span className="nav-label">{n.label}</span>
-          {n.meta && <span className="nav-item-meta">{n.meta}</span>}
+          {meta && <span className="nav-item-meta">{meta}</span>}
         </button>
-      ))}
+        );
+      })}
       {/* Phone-only “More” entry into the overflow sheet */}
       <button className={`nav-item nav-more ${moreActive?'active':''}`} onClick={() => setMoreOpen(true)}>
         <Icon name="more" className="nav-item-icon"/>
@@ -86,13 +90,14 @@ const Sidebar = ({ page, setPage, onCompose }) => {
             <button className="btn btn-icon btn-ghost" onClick={() => setMoreOpen(false)}><Icon name="close"/></button>
           </div>
           <button className="compose-btn" style={{width:'100%', marginBottom:6}} onClick={() => { onCompose(); setMoreOpen(false); }}><Icon name="plus"/> New post</button>
-          {MORE_NAV.map(id => {
+          {[...MORE_NAV, ...(Store.isAdmin() ? ['admin'] : [])].map(id => {
             const n = NAV.find(x => x.id === id);
+            const meta = id === 'admin' ? (Store.pendingCount() || null) : null;
             return (
               <button key={id} className={`more-row ${page===id?'active':''}`} onClick={() => go(id)}>
                 <Icon name={n.icon}/>
                 <span>{n.label}</span>
-                {page===id && <span className="more-dot"></span>}
+                {meta ? <span className="nav-item-meta" style={{marginLeft:'auto'}}>{meta}</span> : (page===id && <span className="more-dot"></span>)}
               </button>
             );
           })}
@@ -227,6 +232,13 @@ const App = () => {
     return (<><AuthScreen /><TweaksUI t={t} set={set} /></>);
   }
 
+  // Supabase mode: signed in but awaiting admin approval (or rejected)
+  if (Store.mode === 'supabase' && Store.isAuthed()) {
+    const status = Store.myStatus();
+    if (status === 'pending')  return (<><PendingScreen /><TweaksUI t={t} set={set} /></>);
+    if (status === 'rejected') return (<><RejectedScreen /><TweaksUI t={t} set={set} /></>);
+  }
+
   // Onboarding tour (local mode only — in Supabase mode signup collects the same info)
   if (Store.mode === 'local' && !onboarded) {
     return (
@@ -250,6 +262,7 @@ const App = () => {
           {page === 'events'   && <EventsScreen />}
           {page === 'chat'     && <ChatScreen />}
           {page === 'notifs'   && <NotifsScreen />}
+          {page === 'admin'    && Store.isAdmin() && <AdminScreen />}
           {page === 'search'   && <SearchScreen go={setPage} />}
           {page === 'settings' && <SettingsScreen />}
         </main>

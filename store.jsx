@@ -25,6 +25,7 @@ const _listeners = new Set();
 const DEFAULT_PROFILE = {
   id: 'me', name: 'You', role: 'Team member', team: 'PT',
   tagline: 'new here — say hi 👋', bio: '', avatar: null, cover: null,
+  status: 'approved', is_admin: false,
 };
 
 // In-memory cache — identical shape in both modes.
@@ -353,8 +354,38 @@ const Store = {
     else { const row = { swap_id: swapId, user_id: _meId }; mutate(() => cacheInsert('swap_covers', row), () => sb.from('swap_covers').insert(row)); }
   },
 
-  // ---------- teammates ----------
-  teammates() { return (_state.profiles || []).filter(p => p.id !== _meId).map(personFor); },
+  // ---------- teammates (approved members only) ----------
+  teammates() {
+    return (_state.profiles || [])
+      .filter(p => p.id !== _meId && (p.status === 'approved' || p.status == null))
+      .map(personFor);
+  },
+
+  // ---------- membership & approvals ----------
+  // In local (single-user) mode the one user is always an approved admin so
+  // nothing is gated and the admin screen can be previewed.
+  isAdmin() { return SUPA ? !!this.profile().is_admin : true; },
+  myStatus() { return SUPA ? (this.profile().status || 'pending') : 'approved'; },
+  membersByStatus(status) {
+    return (_state.profiles || [])
+      .filter(p => (p.status || 'pending') === status)
+      .map(p => ({ ...personFor(p), status: p.status || 'pending', isAdmin: !!p.is_admin, created_at: p.created_at }))
+      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  },
+  pendingCount() { return (_state.profiles || []).filter(p => (p.status || 'pending') === 'pending').length; },
+  setMemberStatus(id, status) {
+    if (id === _meId) return; // can't change your own status from the UI
+    mutate(
+      () => {
+        const arr = _state.profiles || [];
+        const i = arr.findIndex(p => p.id === id);
+        if (i >= 0) { arr[i] = { ...arr[i], status }; _state.profiles = [...arr]; }
+      },
+      () => sb.from('profiles').update({ status }).eq('id', id),
+    );
+  },
+  approveUser(id) { this.setMemberStatus(id, 'approved'); },
+  rejectUser(id)  { this.setMemberStatus(id, 'rejected'); },
 
   // ---------- danger zone ----------
   reset() {
