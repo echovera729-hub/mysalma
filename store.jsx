@@ -1,402 +1,598 @@
-// ════════════════════════════════════════════════════════════════
-//  MySalma — data store
-//  Dual mode:
-//   • LOCAL  (default)  — everything saved in this browser's localStorage.
-//                         Single user. Great for demos / offline.
-//   • SUPABASE (when supabase-config.js is filled in) — a shared, live,
-//                         multi-user network. Auth + realtime.
-//
-//  The rest of the app never changes between modes: every screen reads
-//  through synchronous getters that hit an in-memory cache, and calls
-//  mutation methods that (a) update the cache optimistically and
-//  (b) persist — to localStorage, or to Supabase + realtime.
-// ════════════════════════════════════════════════════════════════
+// MySalma — remaining screens: composer, notifications, chat, search, onboarding, settings
 
-const SUPA = (typeof window !== 'undefined' && window.SUPABASE_ENABLED === true && window.supabase);
-const LS_KEY = 'mysalma_v2';
-const PREF_KEY = 'mysalma_prefs'; // device-local prefs (saved posts), both modes
+const { useState: useS3 } = React;
 
-let sb = null;
-let _meId = 'me';
-let _authed = !SUPA;        // local mode is always "authed"
-let _inited = false;
-const _listeners = new Set();
+// ============================================================
+//  COMPOSER (modal-style screen)
+// ============================================================
+const ComposerScreen = ({ onClose }) => {
+  const [type, setType] = useS3('moment'); // moment | kudos | win | capsule | watch
+  const [body, setBody] = useS3('');
+  const [photos, setPhotos] = useS3([]); // [{ src }]
+  const [kudosTo, setKudosTo] = useS3([]); // typed names
+  const [kudosInput, setKudosInput] = useS3('');
+  const [tag, setTag] = useS3('Calm under pressure');
+  const [capsuleWhen, setCapsuleWhen] = useS3('1 year');
+  const [busy, setBusy] = useS3(false);
+  const fileRef = React.useRef(null);
+  const addKudosName = () => { const n = kudosInput.trim(); if (n && !kudosTo.includes(n)) setKudosTo([...kudosTo, n]); setKudosInput(''); };
 
-const DEFAULT_PROFILE = {
-  id: 'me', name: 'You', role: 'Team member', team: 'PT',
-  tagline: 'new here — say hi 👋', bio: '', avatar: null, cover: null,
-  status: 'approved', is_admin: false,
+  const addPhotos = async (files) => {
+    setBusy(true);
+    const out = [];
+    for (const f of Array.from(files).slice(0, 4)) {
+      try { out.push({ src: await readScaledImage(f) }); } catch (e) {}
+    }
+    setPhotos(p => [...p, ...out].slice(0, 4));
+    setBusy(false);
+  };
+
+  const canPost = !!(body.trim() || photos.length || (type === 'kudos' && kudosTo.length));
+
+  const submit = () => {
+    if (!canPost) return;
+    const base = { body: body.trim(), media: photos.length ? photos : undefined };
+    if (type === 'kudos') {
+      base.featured = 'kudos'; base.kudosNames = kudosTo; base.kudosTag = tag;
+      if (!base.body) base.body = `A bright spot for ${kudosTo.join(' & ') || 'a teammate'} — ${tag}. ✦`;
+    }
+    if (type === 'win') base.featured = 'win';
+    if (type === 'capsule') base.capsule = capsuleWhen;
+    Store.addPost(base);
+    onClose();
+  };
+
+  const types = [
+    { id: 'moment', label: 'Moment',      emoji: '✨', desc: 'Share a photo, story, or update' },
+    { id: 'kudos',  label: 'Bright Spot', emoji: '✦',  desc: 'Public kudos for a coworker' },
+    { id: 'win',    label: 'Win Wall',    emoji: '🌱', desc: 'Celebrate a patient or staff win' },
+    { id: 'capsule',label: 'Time Capsule',emoji: '⏳', desc: 'Schedule for the future' },
+    { id: 'watch',  label: 'Watch Party', emoji: '📺', desc: 'Co-watch / co-listen room' },
+  ];
+
+  return (
+    <div className="modal-overlay" style={{
+      position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)',
+      display:'grid', placeItems:'center', padding:20, zIndex:200
+    }} onClick={onClose}>
+      <div className="modal-sheet" style={{
+        width:'min(640px, 100%)', maxHeight:'90vh', overflow:'auto',
+        background:'var(--cream)', borderRadius:24, padding:28,
+        boxShadow:'0 30px 60px rgba(0,0,0,.3)', border:'1px solid var(--line)'
+      }} onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18}}>
+          <h2 style={{fontSize:22}}>New post</h2>
+          <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
+        </div>
+
+        <div style={{display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:18}}>
+          {types.map(t => (
+            <button key={t.id} onClick={()=>setType(t.id)} style={{
+              border: `1.5px solid ${type===t.id ? 'var(--teal)' : 'var(--line)'}`,
+              background: type===t.id ? 'var(--teal-tint)' : 'var(--paper)',
+              borderRadius:14, padding:'12px 8px', cursor:'pointer',
+              display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+              fontFamily:'inherit', transition:'all .15s'
+            }}>
+              <span style={{fontSize:22}}>{t.emoji}</span>
+              <span style={{fontSize:12, fontWeight:600, color:'var(--navy)'}}>{t.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div style={{display:'flex', gap:12, alignItems:'flex-start', marginBottom:14}}>
+          <Avatar person="me" size="md" />
+          <div style={{flex:1}}>
+            <div style={{fontWeight:600, fontSize:14, color:'var(--navy)'}}>{Store.profile().name}</div>
+            <div style={{display:'flex', gap:6, marginTop:4}}>
+              <span className="pill" style={{fontSize:11, cursor:'pointer'}}>👥 Whole hospital</span>
+              <span className="pill" style={{fontSize:11, cursor:'pointer'}}>{(TEAMS[Store.profile().team]||{}).label || 'My team'}</span>
+            </div>
+          </div>
+        </div>
+
+        {type === 'kudos' && (
+          <div style={{padding:14, background:'var(--butter-soft)', border:'1px solid #F0E5C0', borderRadius:14, marginBottom:14}}>
+            <div className="kudos-eyebrow">✦ a bright spot for…</div>
+            <div style={{display:'flex', gap:8, flexWrap:'wrap', marginTop:10, alignItems:'center'}}>
+              {kudosTo.map(n => (
+                <span key={n} style={{display:'flex', alignItems:'center', gap:6, padding:'5px 8px 5px 12px', background:'var(--navy)', color:'white', borderRadius:999, fontWeight:600, fontSize:13}}>
+                  {n}
+                  <button onClick={()=>setKudosTo(kudosTo.filter(x=>x!==n))} style={{background:'rgba(255,255,255,.2)', border:0, color:'white', width:18, height:18, borderRadius:'50%', cursor:'pointer', display:'grid', placeItems:'center', fontSize:11}}>×</button>
+                </span>
+              ))}
+              <input className="input" value={kudosInput} onChange={e=>setKudosInput(e.target.value)}
+                onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); addKudosName(); } }}
+                placeholder={kudosTo.length ? 'add another…' : "type a coworker's name…"}
+                style={{flex:1, minWidth:160, width:'auto'}} />
+            </div>
+            <div style={{marginTop:14, fontSize:12.5, fontWeight:600, color:'#8C6A1A', marginBottom:6}}>FOR…</div>
+            <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+              {['Calm under pressure', 'Above & beyond', 'Mentor', 'Quiet hero', 'Patient whisperer', 'Team player'].map(t => (
+                <button key={t} onClick={()=>setTag(t)} style={{
+                  padding:'5px 12px', borderRadius:999,
+                  background: tag===t ? '#8C6A1A' : 'var(--paper)',
+                  color: tag===t ? 'white' : 'var(--navy)',
+                  border: `1px solid ${tag===t ? '#8C6A1A' : 'var(--line)'}`,
+                  cursor:'pointer', fontWeight:600, fontSize:12.5
+                }}>✦ {t}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {type === 'capsule' && (
+          <div className="capsule-card" style={{marginBottom:14}}>
+            <div className="capsule-icon">⏳</div>
+            <div className="capsule-info">
+              <div className="capsule-tag">opens for you in…</div>
+              <div style={{display:'flex', gap:6, marginTop:8}}>
+                {['1 month','6 months','1 year','5 years'].map(w => (
+                  <button key={w} onClick={()=>setCapsuleWhen(w)} style={{
+                    padding:'5px 12px', borderRadius:999,
+                    background: capsuleWhen===w ? '#524FA3' : 'var(--paper)',
+                    color: capsuleWhen===w ? 'white' : 'var(--navy)',
+                    border: `1px solid ${capsuleWhen===w ? '#524FA3' : 'var(--lavender)'}`,
+                    cursor:'pointer', fontWeight:600, fontSize:12.5
+                  }}>{w}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {type === 'win' && (
+          <div style={{padding:12, background:'var(--mint-soft)', border:'1px solid var(--mint)', borderRadius:14, marginBottom:14, fontSize:13, color:'var(--teal-deep)'}}>
+            🌱 <strong>Patient win etiquette:</strong> use first initials only, confirm consent for any photos, and skip clinical details. The Win Wall is for celebrating, not charting.
+          </div>
+        )}
+
+        {type === 'watch' && (
+          <div className="watch-card" style={{marginBottom:14}}>
+            <span className="watch-live">SETTING UP</span>
+            <h3 style={{color:'white', marginTop:10, fontSize:20}}>Watch Party</h3>
+            <p style={{margin:'6px 0 0', opacity:.85, fontSize:13.5}}>Drop a link (Youtube, internal training, podcast) — everyone in the room watches in sync.</p>
+            <input className="input" placeholder="paste link…" style={{marginTop:12, background:'rgba(255,255,255,.1)', color:'white', border:'1px solid rgba(255,255,255,.2)'}} />
+          </div>
+        )}
+
+        <textarea
+          className="input input-lg"
+          placeholder={
+            type === 'kudos' ? `${kudosTo.length ? kudosTo[0] + ' was…' : 'Tell us why they deserve this Bright Spot…'}` :
+            type === 'win'   ? "What happened? Who's it about? (initials only please)" :
+            type === 'capsule' ? "Write a note to future-you (or future-team)…" :
+            type === 'watch' ? "Optional message for the room…" :
+            "What's a bright spot from today? ✨"
+          }
+          value={body}
+          onChange={e=>setBody(e.target.value)}
+          style={{minHeight:120, resize:'vertical'}}
+        />
+
+        {photos.length > 0 && (
+          <div style={{display:'grid', gridTemplateColumns:`repeat(${Math.min(photos.length,3)},1fr)`, gap:6, marginTop:12}}>
+            {photos.map((p, i) =>
+              <div key={i} style={{position:'relative', aspectRatio:1, borderRadius:12, overflow:'hidden', backgroundImage:`url(${p.src})`, backgroundSize:'cover', backgroundPosition:'center'}}>
+                <button onClick={() => setPhotos(ph => ph.filter((_, j) => j !== i))} style={{position:'absolute', top:6, right:6, width:26, height:26, borderRadius:'50%', border:0, background:'rgba(20,36,71,.7)', color:'white', cursor:'pointer', display:'grid', placeItems:'center'}}><Icon name="close" size={14}/></button>
+              </div>
+            )}
+          </div>
+        )}
+        {busy && <div style={{fontSize:12, color:'var(--ink-soft)', marginTop:8}}>Adding photos…</div>}
+
+        <div style={{display:'flex', alignItems:'center', gap:6, marginTop:14, padding:'10px 0', borderTop:'1px solid var(--line)', borderBottom:'1px solid var(--line)'}}>
+          <input ref={fileRef} type="file" accept="image/*" multiple style={{display:'none'}}
+            onChange={e => { addPhotos(e.target.files); e.target.value = ''; }} />
+          <button className="composer-action" style={{color:'var(--teal-deep)', cursor:'pointer', background:'transparent', border:0}} onClick={() => fileRef.current && fileRef.current.click()}>
+            <Icon name="image" size={16}/> Photo
+          </button>
+          <button className="composer-action" style={{color:'#B86833', cursor:'pointer', background:'transparent', border:0}}>
+            <Icon name="video" size={16}/> Video
+          </button>
+          <button className="composer-action" style={{color:'#524FA3', cursor:'pointer', background:'transparent', border:0}}>
+            <Icon name="poll" size={16}/> Poll
+          </button>
+          <button className="composer-action" style={{color:'var(--slate)', cursor:'pointer', background:'transparent', border:0}}>
+            <Icon name="location" size={16}/> Place
+          </button>
+          <button className="composer-action" style={{color:'#C9A645', cursor:'pointer', background:'transparent', border:0}}>
+            <Icon name="smile" size={16}/> Mood
+          </button>
+        </div>
+
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:16}}>
+          <div style={{fontSize:12, color:'var(--ink-soft)'}}>
+            {type === 'capsule' ? `📦 Sealed until ${capsuleWhen} from now` :
+             type === 'kudos' ? `✦ ${kudosTo.length} ${kudosTo.length===1?'person':'people'} · ${tag}` :
+             '👁 visible to: whole hospital'}
+          </div>
+          <div style={{display:'flex', gap:8}}>
+            <button className="btn" onClick={onClose}>Cancel</button>
+            <button className="btn btn-primary" disabled={!canPost} style={!canPost ? {opacity:.5, cursor:'not-allowed'} : {}} onClick={submit}>Post{type === 'capsule' ? ' + Seal' : ''}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-// In-memory cache — identical shape in both modes.
-let _state = blankState();
-let _prefs = loadPrefs();
+// ============================================================
+//  NOTIFICATIONS panel (full screen mode)
+// ============================================================
+const NotifsScreen = () => (
+  <>
+    <div className="page-head">
+      <div>
+        <div className="page-greet"><span className="hand">all caught up</span></div>
+        <h1 className="page-title">Notifications</h1>
+      </div>
+    </div>
+    <EmptyState emoji="🔔" title="You're all caught up"
+      sub="Reactions, replies, Bright Spots, event invites and mentions will land here as your team starts using Rehab.Wisal." />
+  </>
+);
 
-function blankState() {
-  return {
-    profiles: [],          // [{id,name,role,team,tagline,bio,avatar,cover}]
-    posts: [],             // [{id,author,body,media,featured,kudos_names,kudos_tag,capsule,created_at}]
-    reactions: [],         // [{id,post_id,user_id,emoji}]
-    comments: [],          // [{id,post_id,user_id,text,created_at}]
-    events: [],            // [{id,host,title,d,m,day,time,location,tag,color,created_at}]
-    event_rsvps: [],       // [{event_id,user_id}]
-    crews: [],             // [{id,emoji,name,created_by}]
-    crew_members: [],      // [{crew_id,user_id}]
-    swaps: [],             // [{id,by,need,offer,note,urgency,team,created_at}]
-    swap_covers: [],       // [{swap_id,user_id}]
-    moods: [],             // [{user_id,day,mood}]
-    dailies: [],           // [{user_id,day,answer}]
+// ============================================================
+//  CHAT screen
+// ============================================================
+const ChatScreen = () => (
+  <>
+    <div className="page-head" style={{marginBottom:14}}>
+      <div>
+        <div className="page-greet"><span className="hand">messages</span></div>
+        <h1 className="page-title">Chat</h1>
+      </div>
+    </div>
+    <EmptyState emoji="💬" title="No conversations yet"
+      sub="Direct messages and team group chats appear here once your coworkers are on Rehab.Wisal. One-to-one and group threads, photos, and quick handoffs — all in one place." />
+  </>
+);
+
+// ============================================================
+//  SEARCH / DISCOVER screen
+// ============================================================
+const SearchScreen = ({ go }) => {
+  const [q, setQ] = useS3('');
+  useStore();
+  const crews = Store.crews();
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <div className="page-greet"><span className="hand">discover</span></div>
+          <h1 className="page-title">Search &amp; explore</h1>
+        </div>
+      </div>
+      <div className="search-bar" style={{padding:'14px 20px', marginBottom:18}}>
+        <Icon name="search" size={20}/>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search people, crews, posts, events…" style={{fontSize:16}}/>
+        <span className="pill" style={{fontSize:11}}>⌘K</span>
+      </div>
+
+      <div className="section-head"><h3>Crews to start</h3><span className="meta">interest groups across teams</span></div>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:12}}>
+        {CREW_IDEAS.filter(c => !Store.hasCrew(c.name)).map(c => (
+          <div key={c.name} className="card card-pad" style={{display:'flex', flexDirection:'column', gap:8, cursor:'pointer'}} onClick={()=>Store.addCrew(c)}>
+            <div className="crew-icon" style={{width:48, height:48, fontSize:24}}>{c.emoji}</div>
+            <div style={{fontWeight:600, fontSize:14.5}}>{c.name}</div>
+            <button className="btn btn-sm" style={{alignSelf:'flex-start'}}>+ Create &amp; join</button>
+          </div>
+        ))}
+        {crews.map(c => (
+          <div key={c.id} className="card card-pad" style={{display:'flex', flexDirection:'column', gap:8}}>
+            <div className="crew-icon" style={{width:48, height:48, fontSize:24}}>{c.emoji}</div>
+            <div style={{fontWeight:600, fontSize:14.5}}>{c.name}</div>
+            <span className="pill pill-teal" style={{alignSelf:'flex-start', fontSize:11}}>✓ Joined</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{marginTop:22}}>
+        <EmptyState emoji="🔍" title="People &amp; posts will be searchable here"
+          sub="Once your hospital is on Rehab.Wisal, search finds coworkers, Bright Spots, wins, events and photos across every team." />
+      </div>
+    </>
+  );
+};
+
+// ============================================================
+//  ONBOARDING flow
+// ============================================================
+const OnboardingScreen = ({ onDone }) => {
+  const [step, setStep] = useS3(0);
+  const [name, setName] = useS3('');
+  const [role, setRole] = useS3('');
+  const [team, setTeam] = useS3(null);
+  const [mood, setMood] = useS3(null);
+  const [crews, setCrews] = useS3([]);
+
+  const finish = () => {
+    const patch = {};
+    if (name.trim()) patch.name = name.trim();
+    if (role.trim()) patch.role = role.trim();
+    if (team) patch.team = team;
+    if (Object.keys(patch).length) Store.setProfile(patch);
+    if (mood) Store.setMood(mood);
+    crews.forEach(idx => Store.addCrew(CREW_IDEAS[idx]));
+    onDone();
   };
-}
 
-// ---------- persistence (local mode) ----------
-function loadLocal() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(LS_KEY));
-    if (raw && raw.profiles) return { ...blankState(), ...raw };
-  } catch (e) {}
-  const s = blankState();
-  s.profiles = [{ ...DEFAULT_PROFILE }];
-  return s;
-}
-function persistLocal() {
-  if (SUPA) return;
-  try { localStorage.setItem(LS_KEY, JSON.stringify(_state)); }
-  catch (e) {
-    if (String(e).match(/quota/i)) alert("MySalma's local storage is full — try removing a post with large photos.");
-  }
-}
-function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY)) || { saved: {} }; } catch (e) { return { saved: {} }; } }
-function persistPrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(_prefs)); } catch (e) {} }
+  const steps = [
+    {
+      emoji: '👋',
+      title: <>Welcome to <span style={{color:'var(--teal)'}}>Rehab.Wisal</span></>,
+      sub: 'A little corner of the internet just for our team. Photos, wins, weird-shift-stories, the occasional banana bread sighting.',
+      body: (
+        <div style={{marginTop:22}}>
+          <div style={{display:'flex', gap:12}}>
+            <div style={{flex:1}}>
+              <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Your name</label>
+              <input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Sara Mendoza" />
+            </div>
+            <div style={{flex:1}}>
+              <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Your role</label>
+              <input className="input" value={role} onChange={e=>setRole(e.target.value)} placeholder="e.g. Physiotherapist" />
+            </div>
+          </div>
+          <div style={{marginTop:16, padding:16, background:'var(--cream)', borderRadius:14, border:'1px solid var(--line)'}}>
+            <div style={{display:'flex', gap:14, alignItems:'flex-start'}}>
+              <span style={{fontSize:24}}>🤝</span>
+              <div style={{fontSize:13.5, lineHeight:1.55, color:'var(--ink)'}}>
+                <strong style={{color:'var(--navy)'}}>The promise.</strong> This space is internal-only. Patient details stay anonymous. Pulse moods are aggregate. You can mute, leave, or quit anytime. Be kind, be real.
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      emoji: '🩺',
+      title: 'Which team are you on?',
+      sub: "We'll auto-add you to the right channels — you can always tweak this later.",
+      body: (
+        <div className="team-select-grid">
+          {Object.entries(TEAMS).map(([k, t]) => (
+            <div key={k} className={`team-select-card ${team===k?'selected':''}`} onClick={()=>setTeam(k)}>
+              <div className="team-select-icon">{
+                {PT:'🦵', OT:'✋', SLP:'🗣️', RT:'🎨', NUR:'💉', ADM:'📋', RES:'🫁', DIE:'🥗'}[k]
+              }</div>
+              <div className="team-select-name">{t.label}</div>
+              <div className="team-select-desc">{
+                {PT:'Movement & strength', OT:'Daily living skills', SLP:'Speech & swallow', RT:'Music, art, play', NUR:'Care & coordination', ADM:'Behind the scenes', RES:'Breath & airways', DIE:'Nutrition'}[k]
+              }</div>
+            </div>
+          ))}
+        </div>
+      )
+    },
+    {
+      emoji: '✨',
+      title: "Find your crews",
+      sub: "Mini-communities by interest, not job. You can join more later.",
+      body: (
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:20}}>
+          {CREW_IDEAS.map((c, idx) => {
+            const on = crews.includes(idx);
+            return (
+              <div key={c.name} onClick={()=>setCrews(on ? crews.filter(x=>x!==idx) : [...crews, idx])} style={{
+                display:'flex', gap:10, alignItems:'center', padding:12, borderRadius:12,
+                border:`1.5px solid ${on?'var(--teal)':'var(--line)'}`,
+                background: on ? 'var(--teal-tint)' : 'var(--paper)',
+                cursor:'pointer'
+              }}>
+                <div className="crew-icon">{c.emoji}</div>
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{fontWeight:600, fontSize:13.5}}>{c.name}</div>
+                </div>
+                {on && <Icon name="check" size={18} style={{color:'var(--teal)'}} />}
+              </div>
+            );
+          })}
+        </div>
+      )
+    },
+    {
+      emoji: '🫧',
+      title: 'How are you, today?',
+      sub: "We'll ask once a shift. It's anonymous in aggregate — only your team's vibe shape is shared. (You can skip whenever.)",
+      body: (
+        <div className="pulse-moods" style={{justifyContent:'center', marginTop:24}}>
+          {MOODS.map(m => (
+            <button key={m.id} className={`mood-chip ${mood === m.id ? 'selected' : ''}`} onClick={() => setMood(m.id)} style={{minWidth:70, padding:'12px 14px'}}>
+              <span className="mood-emoji" style={{fontSize:28}}>{m.emoji}</span>
+              <span className="mood-name">{m.label}</span>
+            </button>
+          ))}
+        </div>
+      )
+    },
+    {
+      emoji: '🌿',
+      title: name.trim() ? `You're all set, ${name.trim().split(' ')[0]}.` : "You're all set.",
+      sub: "Welcome to the team's space. Three things to try first:",
+      body: (
+        <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:20}}>
+          {[
+            ['✨','Share your first Moment — even a coffee photo counts'],
+            ['✦','Send a Bright Spot to someone who helped you this week'],
+            ['📅','Plan an event, or start a crew for something you love'],
+          ].map(([e,t]) => (
+            <div key={t} style={{display:'flex', gap:14, padding:14, background:'var(--cream)', borderRadius:12, border:'1px solid var(--line)'}}>
+              <span style={{fontSize:22}}>{e}</span>
+              <span style={{fontSize:14, color:'var(--ink)'}}>{t}</span>
+            </div>
+          ))}
+        </div>
+      )
+    }
+  ];
 
-function _emit() { _listeners.forEach(fn => fn()); }
-function dayKey() { return new Date().toISOString().slice(0, 10); }
-function newId(prefix) { return (SUPA && crypto.randomUUID) ? crypto.randomUUID() : (prefix + Date.now() + Math.random().toString(36).slice(2, 6)); }
+  const s = steps[step];
 
-// ---------- person helpers ----------
-function personFor(row) {
-  if (!row) return null;
-  const name = row.name || 'Teammate';
-  const team = row.team || 'PT';
-  const initials = name.split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'U';
-  return {
-    id: row.id, name, first: name.split(/\s+/)[0] || name,
-    role: row.role || '', team,
-    color: (window.TEAMS && TEAMS[team] ? TEAMS[team] : { color: '#94A0B8' }).color,
-    emoji: initials, avatar: row.avatar || null,
-  };
-}
-function profileRow(id) { return (_state.profiles || []).find(p => p.id === id); }
+  return (
+    <div className="onboard">
+      <div className="onboard-card">
+        <div className="onboard-steps">
+          {steps.map((_, i) => <div key={i} className={`onboard-step ${i<step?'done':''} ${i===step?'active':''}`}></div>)}
+        </div>
+        <div className="onboard-emoji">{s.emoji}</div>
+        <h2 className="onboard-title" style={{marginTop:12}}>{s.title}</h2>
+        <p className="onboard-sub">{s.sub}</p>
+        {s.body}
+        <div className="onboard-actions">
+          <button className="btn btn-ghost" onClick={() => step === 0 ? onDone() : setStep(s => s-1)}>
+            {step === 0 ? 'Skip tour' : '← Back'}
+          </button>
+          <button className="btn btn-primary" onClick={() => step === steps.length-1 ? finish() : setStep(s => s+1)}>
+            {step === steps.length-1 ? 'Take me in →' : 'Next →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-// ════════════════════════════════════════════════════════════════
-//  React hook — re-render any component on store change
-// ════════════════════════════════════════════════════════════════
-function useStore() {
-  const [, force] = React.useState(0);
-  React.useEffect(() => {
-    const l = () => force(x => x + 1);
-    _listeners.add(l);
-    return () => _listeners.delete(l);
-  }, []);
-  return _state;
-}
-
-// Downscale an uploaded image to a JPEG dataURL (keeps storage small).
-function readScaledImage(file, max = 1280, quality = 0.82) {
-  return new Promise((resolve, reject) => {
-    if (!file || !file.type.startsWith('image/')) { reject(new Error('not an image')); return; }
-    const fr = new FileReader();
-    fr.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        let w = img.width, h = img.height;
-        if (w > max || h > max) { const r = Math.min(max / w, max / h); w = Math.round(w * r); h = Math.round(h * r); }
-        const c = document.createElement('canvas'); c.width = w; c.height = h;
-        c.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(c.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = reject; img.src = fr.result;
-    };
-    fr.onerror = reject; fr.readAsDataURL(file);
+// ============================================================
+//  SETTINGS
+// ============================================================
+const SettingsScreen = () => {
+  useStore();
+  const prof = Store.profile();
+  const [section, setSection] = useS3('account');
+  const avRef = React.useRef(null);
+  const setAvatar = async (file) => { try { Store.setProfile({ avatar: await readScaledImage(file, 512) }); } catch (e) {} };
+  const [toggles, setToggles] = useS3({
+    quietMode: true,
+    pulse: true,
+    capsule: true,
+    kudos: true,
+    digest: false,
+    nightShift: false,
+    away: false,
   });
-}
+  const T = (k, txt, sub) => (
+    <div className="settings-row">
+      <div className="settings-row-info"><h4>{txt}</h4><p>{sub}</p></div>
+      <div className={`toggle ${toggles[k]?'on':''}`} onClick={() => setToggles(t => ({...t, [k]:!t[k]}))}></div>
+    </div>
+  );
 
-// ════════════════════════════════════════════════════════════════
-//  Supabase plumbing
-// ════════════════════════════════════════════════════════════════
-const TABLES = ['profiles','posts','reactions','comments','events','event_rsvps','crews','crew_members','swaps','swap_covers','moods','dailies'];
+  return (
+    <>
+      <div className="page-head">
+        <h1 className="page-title">Settings</h1>
+      </div>
+      <div className="settings-grid">
+        <div className="settings-nav">
+          {[
+            ['account','Account'],
+            ['privacy','Privacy & Pulse'],
+            ['notifs','Notifications'],
+            ['shift','Shift & Quiet hours'],
+            ['appearance','Appearance'],
+            ['team','My team & crews'],
+            ['help','Help & feedback']
+          ].map(([k,l]) => (
+            <button key={k} className={`nav-item ${section===k?'active':''}`} onClick={()=>setSection(k)}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <div className="card card-pad" style={{padding:24}}>
+          {section === 'account' && (<>
+            <h3 style={{fontSize:20, marginBottom:18}}>Account</h3>
+            {Store.mode === 'supabase' && (() => {
+              const admin = Store.isAdmin();
+              const status = Store.myStatus();
+              const stMeta = { approved: ['✓ Approved', 'pill-teal'], pending: ['⏳ Pending', 'pill-butter'], rejected: ['Rejected', 'pill-blush'] }[status] || ['—', 'pill'];
+              return (
+                <div style={{display:'flex', alignItems:'center', gap:14, padding:'14px 16px', marginBottom:20, borderRadius:'var(--r-md)',
+                  background: admin ? 'linear-gradient(135deg, var(--teal-tint), var(--mint-soft))' : 'var(--cream)', border:'1px solid var(--line)'}}>
+                  <div style={{width:46, height:46, borderRadius:12, flexShrink:0, display:'grid', placeItems:'center', fontSize:22,
+                    background: admin ? 'var(--navy)' : 'var(--paper)', color: admin ? 'white' : 'var(--ink-soft)', border: admin ? 'none' : '1px solid var(--line)'}}>
+                    {admin ? '🛡️' : '🪪'}
+                  </div>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontWeight:700, fontSize:15, color:'var(--navy)'}}>{admin ? 'Administrator' : 'Team member'}</div>
+                    <div style={{fontSize:12.5, color:'var(--ink-soft)'}}>{admin ? 'You can approve or reject new sign-ups in the Approvals tab.' : 'Standard member access.'}</div>
+                  </div>
+                  <span className={`pill ${stMeta[1]}`}>{stMeta[0]}</span>
+                </div>
+              );
+            })()}
+            <div style={{display:'flex', gap:18, alignItems:'center', marginBottom:24}}>
+              <Avatar person="me" size="xl" />
+              <div>
+                <div style={{fontWeight:600, fontSize:18, color:'var(--navy)'}}>{prof.name}</div>
+                <div style={{color:'var(--ink-soft)'}}>{prof.name.toLowerCase().replace(/[^a-z]+/g,'.')}@rehabwisal.org</div>
+                <div style={{marginTop:8, display:'flex', gap:8}}>
+                  <input ref={avRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ if(e.target.files[0]) setAvatar(e.target.files[0]); e.target.value=''; }} />
+                  <button className="btn btn-sm" onClick={()=>avRef.current.click()}>Change photo</button>
+                  {prof.avatar && <button className="btn btn-sm btn-ghost" onClick={()=>Store.setProfile({avatar:null})}>Remove</button>}
+                </div>
+              </div>
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-info"><h4>Display name</h4><p>How you appear to coworkers</p></div>
+              <input className="input" style={{maxWidth:240}} value={prof.name} onChange={e=>Store.setProfile({name:e.target.value})} />
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-info"><h4>Role</h4><p>Your job title on your profile</p></div>
+              <input className="input" style={{maxWidth:240}} value={prof.role} onChange={e=>Store.setProfile({role:e.target.value})} />
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-info"><h4>Tagline</h4><p>That hand-lettered note under your name</p></div>
+              <input className="input" style={{maxWidth:240, fontFamily:'var(--font-hand)', fontSize:17, color:'var(--teal-deep)'}} value={prof.tagline} maxLength={48} onChange={e=>Store.setProfile({tagline:e.target.value})} />
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-info"><h4 style={{color:'#B05050'}}>{Store.mode === 'supabase' ? 'Sign out' : 'Reset Rehab.Wisal'}</h4><p>{Store.mode === 'supabase' ? 'Sign out of MySalma on this device' : 'Clear all your posts, reactions, photos & profile changes on this device'}</p></div>
+              <button className="btn btn-sm" style={{borderColor:'#E7B7B7', color:'#B05050'}} onClick={()=>Store.reset()}>{Store.mode === 'supabase' ? 'Sign out' : 'Reset data'}</button>
+            </div>
+          </>)}
 
-async function loadAll() {
-  const results = await Promise.all(TABLES.map(t => sb.from(t).select('*')));
-  TABLES.forEach((t, i) => { _state[t] = results[i].data || []; });
-}
-let _reloadTimer = null;
-function scheduleReload() {
-  clearTimeout(_reloadTimer);
-  _reloadTimer = setTimeout(async () => { await loadAll(); _emit(); }, 250);
-}
-function subscribeRealtime() {
-  sb.channel('mysalma-all')
-    .on('postgres_changes', { event: '*', schema: 'public' }, scheduleReload)
-    .subscribe();
-}
-// optimistic cache helpers
-function cacheInsert(table, row) { _state[table] = [...(_state[table] || []), row]; }
-function cacheRemove(table, pred) { _state[table] = (_state[table] || []).filter(r => !pred(r)); }
+          {section === 'privacy' && (<>
+            <h3 style={{fontSize:20, marginBottom:18}}>Privacy & Pulse</h3>
+            <div className="banner" style={{marginBottom:18}}>🔒 Rehab.Wisal is internal-only. Nothing here is indexed publicly or shared with outside services.</div>
+            {T('pulse', 'Daily Pulse check-ins', 'Show me the mood prompt at the start of each shift')}
+            {T('kudos', 'Public Bright Spots', "Allow coworkers to send me kudos publicly. (Private ones still work.)")}
+            {T('capsule', 'Time Capsule reminders', 'Email me when a sealed capsule is about to open')}
+            <div className="settings-row"><div><h4>Profile visibility</h4><p>Who can find me in search</p></div><span className="pill pill-teal">Whole hospital</span></div>
+            <div className="settings-row"><div><h4>Patient win photos</h4><p>Default consent prompt for any Win Wall posts</p></div><span className="pill">Always ask</span></div>
+          </>)}
 
-// Run a mutation: optimistic cache change + emit, then persist to the backend.
-function mutate(localChange, remote) {
-  localChange();
-  _emit();
-  if (SUPA && remote) { Promise.resolve(remote()).catch(err => { console.error('[MySalma] sync error', err); scheduleReload(); }); }
-  else persistLocal();
-}
+          {section === 'shift' && (<>
+            <h3 style={{fontSize:20, marginBottom:18}}>Shift & quiet hours</h3>
+            {T('quietMode','Quiet during shift', "Mute non-urgent notifications when I'm clocked in")}
+            {T('nightShift','Night-shift mode', 'Auto dark mode + softer pings between 8pm and 6am')}
+            {T('away','Away today', "I'm off — pause Pulse, Bright Spot reminders, and group pings")}
+            <div className="settings-row"><div><h4>My usual schedule</h4><p>Helps the app know when to nudge gently</p></div><span>Mon–Thu · 7am–4pm</span></div>
+          </>)}
 
-// ════════════════════════════════════════════════════════════════
-//  Store API — synchronous getters, dual-mode mutations
-// ════════════════════════════════════════════════════════════════
-const Store = {
-  get mode() { return SUPA ? 'supabase' : 'local'; },
-  isReady() { return _inited; },
-  isAuthed() { return _authed; },
-  meId() { return _meId; },
+          {section === 'notifs' && (<>
+            <h3 style={{fontSize:20, marginBottom:18}}>Notifications</h3>
+            {T('digest', 'Weekly Friday digest', 'A wrap-up of the best moments + Win Wall posts')}
+            <div className="settings-row"><div><h4>Bright Spots</h4></div><span>In-app + email</span></div>
+            <div className="settings-row"><div><h4>Mentions</h4></div><span>In-app</span></div>
+            <div className="settings-row"><div><h4>Events</h4></div><span>In-app · 1 day before</span></div>
+            <div className="settings-row"><div><h4>Spotlight nomination</h4></div><span>In-app + email</span></div>
+          </>)}
 
-  async init() {
-    if (SUPA) {
-      sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true },
-      });
-      const { data: { session } } = await sb.auth.getSession();
-      sb.auth.onAuthStateChange(async (_e, sess) => {
-        _authed = !!sess; _meId = sess ? sess.user.id : 'me';
-        if (sess) { await loadAll(); }
-        _emit();
-      });
-      if (session) { _meId = session.user.id; _authed = true; await loadAll(); subscribeRealtime(); }
-      else { _authed = false; }
-    } else {
-      _state = loadLocal(); _meId = 'me'; _authed = true;
-    }
-    _inited = true; _emit();
-  },
-
-  // ---------- auth (supabase mode) ----------
-  async signIn(email, password) {
-    const { error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    await loadAll(); subscribeRealtime(); _emit();
-  },
-  async signUp(email, password, { name, role, team }) {
-    const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name } } });
-    if (error) throw error;
-    if (data.session && data.user) {
-      _meId = data.user.id; _authed = true;
-      await sb.from('profiles').upsert({ id: data.user.id, name, role, team });
-      await loadAll(); subscribeRealtime(); _emit();
-      return { needsConfirm: false };
-    }
-    return { needsConfirm: !data.session }; // email confirmation on
-  },
-  async signOut() { if (sb) await sb.auth.signOut(); _authed = false; _meId = 'me'; _state = blankState(); _emit(); },
-
-  // ---------- identity ----------
-  personById(id) {
-    const realId = (id === 'me' || id === 'sara') ? _meId : id;
-    const row = profileRow(realId);
-    if (row) return personFor(row);
-    if (realId === _meId) return personFor({ ...DEFAULT_PROFILE, id: _meId });
-    return null;
-  },
-  profile() { return profileRow(_meId) || { ...DEFAULT_PROFILE, id: _meId }; },
-  setProfile(patch) {
-    mutate(
-      () => {
-        const arr = _state.profiles || [];
-        const i = arr.findIndex(p => p.id === _meId);
-        if (i >= 0) arr[i] = { ...arr[i], ...patch };
-        else arr.push({ ...DEFAULT_PROFILE, id: _meId, ...patch });
-        _state.profiles = [...arr];
-      },
-      () => sb.from('profiles').upsert({ id: _meId, ...patch }),
-    );
-  },
-
-  // ---------- posts ----------
-  allPosts() {
-    return (_state.posts || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  },
-  myPosts() { return this.allPosts().filter(p => p.author === _meId); },
-  addPost(post) {
-    const id = newId('u');
-    const row = {
-      id, author: _meId, body: post.body || '', media: post.media || [],
-      featured: post.featured || null, kudos_names: post.kudosNames || [],
-      kudos_tag: post.kudosTag || null, capsule: post.capsule || null,
-      created_at: new Date().toISOString(),
-    };
-    mutate(() => cacheInsert('posts', row), () => sb.from('posts').insert(row));
-    return id;
-  },
-  deletePost(id) {
-    mutate(() => cacheRemove('posts', p => p.id === id), () => sb.from('posts').delete().eq('id', id));
-  },
-
-  // ---------- reactions ----------
-  countsFor(postId) {
-    const m = {};
-    (_state.reactions || []).filter(r => r.post_id === postId).forEach(r => { m[r.emoji] = (m[r.emoji] || 0) + 1; });
-    return m;
-  },
-  reactsFor(postId) {
-    return (_state.reactions || []).filter(r => r.post_id === postId && r.user_id === _meId).map(r => r.emoji);
-  },
-  toggleReaction(postId, emoji) {
-    const has = this.reactsFor(postId).includes(emoji);
-    if (has) {
-      mutate(() => cacheRemove('reactions', r => r.post_id === postId && r.user_id === _meId && r.emoji === emoji),
-        () => sb.from('reactions').delete().match({ post_id: postId, user_id: _meId, emoji }));
-    } else {
-      const row = { id: newId('rx'), post_id: postId, user_id: _meId, emoji };
-      mutate(() => cacheInsert('reactions', row), () => sb.from('reactions').insert(row));
-    }
-  },
-
-  // ---------- comments ----------
-  commentsFor(postId) {
-    return (_state.comments || []).filter(c => c.post_id === postId)
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  },
-  addComment(postId, text) {
-    const row = { id: newId('cm'), post_id: postId, user_id: _meId, text, created_at: new Date().toISOString() };
-    mutate(() => cacheInsert('comments', row), () => sb.from('comments').insert(row));
-  },
-
-  // ---------- saved (device-local in both modes) ----------
-  isSaved(id) { return !!(_prefs.saved || {})[id]; },
-  toggleSave(id) { _prefs.saved = { ...(_prefs.saved || {}), [id]: !(_prefs.saved || {})[id] }; persistPrefs(); _emit(); },
-
-  // ---------- mood + daily ----------
-  moodToday() { const r = (_state.moods || []).find(m => m.user_id === _meId && m.day === dayKey()); return r ? r.mood : null; },
-  setMood(mood) {
-    const day = dayKey();
-    mutate(
-      () => { cacheRemove('moods', m => m.user_id === _meId && m.day === day); if (mood) cacheInsert('moods', { user_id: _meId, day, mood }); },
-      () => mood ? sb.from('moods').upsert({ user_id: _meId, day, mood }) : sb.from('moods').delete().match({ user_id: _meId, day }),
-    );
-  },
-  dailyToday() { const r = (_state.dailies || []).find(d => d.user_id === _meId && d.day === dayKey()); return r ? r.answer : null; },
-  setDaily(answer) {
-    const day = dayKey();
-    mutate(
-      () => { cacheRemove('dailies', d => d.user_id === _meId && d.day === day); if (answer) cacheInsert('dailies', { user_id: _meId, day, answer }); },
-      () => answer ? sb.from('dailies').upsert({ user_id: _meId, day, answer }) : sb.from('dailies').delete().match({ user_id: _meId, day }),
-    );
-  },
-
-  // ---------- events ----------
-  events() { return (_state.events || []).slice(); },
-  addEvent(ev) {
-    const id = newId('ev');
-    const row = { id, host: _meId, title: ev.title, d: ev.d || null, m: ev.m || null, day: ev.day || null, time: ev.time || null, location: ev.where || ev.location || null, tag: ev.tag || null, color: ev.color || null, created_at: new Date().toISOString() };
-    mutate(() => { cacheInsert('events', row); cacheInsert('event_rsvps', { event_id: id, user_id: _meId }); },
-      async () => { await sb.from('events').insert(row); await sb.from('event_rsvps').insert({ event_id: id, user_id: _meId }); });
-    return id;
-  },
-  deleteEvent(id) {
-    mutate(() => { cacheRemove('events', e => e.id === id); cacheRemove('event_rsvps', r => r.event_id === id); },
-      () => sb.from('events').delete().eq('id', id));
-  },
-  isGoing(eventId) { return (_state.event_rsvps || []).some(r => r.event_id === eventId && r.user_id === _meId); },
-  goingCount(eventId) { return (_state.event_rsvps || []).filter(r => r.event_id === eventId).length; },
-  toggleGoing(eventId) {
-    const going = this.isGoing(eventId);
-    if (going) mutate(() => cacheRemove('event_rsvps', r => r.event_id === eventId && r.user_id === _meId), () => sb.from('event_rsvps').delete().match({ event_id: eventId, user_id: _meId }));
-    else { const row = { event_id: eventId, user_id: _meId }; mutate(() => cacheInsert('event_rsvps', row), () => sb.from('event_rsvps').insert(row)); }
-  },
-
-  // ---------- crews ----------
-  allCrews() { return (_state.crews || []).slice(); },
-  crews() { const ids = (_state.crew_members || []).filter(m => m.user_id === _meId).map(m => m.crew_id); return this.allCrews().filter(c => ids.includes(c.id)); },
-  discoverCrews() { const ids = (_state.crew_members || []).filter(m => m.user_id === _meId).map(m => m.crew_id); return this.allCrews().filter(c => !ids.includes(c.id)); },
-  hasCrew(name) { return this.crews().some(c => c.name.toLowerCase() === name.toLowerCase()); },
-  crewMemberCount(id) { return (_state.crew_members || []).filter(m => m.crew_id === id).length; },
-  addCrew(crew) {
-    const existing = this.allCrews().find(c => c.name.toLowerCase() === crew.name.toLowerCase());
-    if (existing) { this.joinCrew(existing.id); return; }
-    const id = newId('cr');
-    const row = { id, emoji: crew.emoji || '🌟', name: crew.name, created_by: _meId };
-    mutate(() => { cacheInsert('crews', row); cacheInsert('crew_members', { crew_id: id, user_id: _meId }); },
-      async () => { await sb.from('crews').insert(row); await sb.from('crew_members').insert({ crew_id: id, user_id: _meId }); });
-  },
-  joinCrew(id) {
-    if ((_state.crew_members || []).some(m => m.crew_id === id && m.user_id === _meId)) return;
-    const row = { crew_id: id, user_id: _meId };
-    mutate(() => cacheInsert('crew_members', row), () => sb.from('crew_members').insert(row));
-  },
-  leaveCrew(id) {
-    mutate(() => cacheRemove('crew_members', m => m.crew_id === id && m.user_id === _meId), () => sb.from('crew_members').delete().match({ crew_id: id, user_id: _meId }));
-  },
-
-  // ---------- shift swaps ----------
-  swaps() { return (_state.swaps || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); },
-  addSwap(swap) {
-    const id = newId('sw');
-    const row = { id, by: _meId, need: swap.need, offer: swap.offer || '', note: swap.note || '', urgency: swap.urgency || 'med', team: swap.team || 'PT', created_at: new Date().toISOString() };
-    mutate(() => cacheInsert('swaps', row), () => sb.from('swaps').insert(row));
-    return id;
-  },
-  deleteSwap(id) { mutate(() => { cacheRemove('swaps', s => s.id === id); cacheRemove('swap_covers', c => c.swap_id === id); }, () => sb.from('swaps').delete().eq('id', id)); },
-  isCovered(swapId) { return (_state.swap_covers || []).some(c => c.swap_id === swapId && c.user_id === _meId); },
-  coverCount(swapId) { return (_state.swap_covers || []).filter(c => c.swap_id === swapId).length; },
-  toggleCovered(swapId) {
-    const covered = this.isCovered(swapId);
-    if (covered) mutate(() => cacheRemove('swap_covers', c => c.swap_id === swapId && c.user_id === _meId), () => sb.from('swap_covers').delete().match({ swap_id: swapId, user_id: _meId }));
-    else { const row = { swap_id: swapId, user_id: _meId }; mutate(() => cacheInsert('swap_covers', row), () => sb.from('swap_covers').insert(row)); }
-  },
-
-  // ---------- teammates (approved members only) ----------
-  teammates() {
-    return (_state.profiles || [])
-      .filter(p => p.id !== _meId && (p.status === 'approved' || p.status == null))
-      .map(personFor);
-  },
-
-  // ---------- membership & approvals ----------
-  // In local (single-user) mode the one user is always an approved admin so
-  // nothing is gated and the admin screen can be previewed.
-  isAdmin() { return SUPA ? !!this.profile().is_admin : true; },
-  myStatus() { return SUPA ? (this.profile().status || 'pending') : 'approved'; },
-  membersByStatus(status) {
-    return (_state.profiles || [])
-      .filter(p => (p.status || 'pending') === status)
-      .map(p => ({ ...personFor(p), status: p.status || 'pending', isAdmin: !!p.is_admin, created_at: p.created_at }))
-      .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
-  },
-  pendingCount() { return (_state.profiles || []).filter(p => (p.status || 'pending') === 'pending').length; },
-  setMemberStatus(id, status) {
-    if (id === _meId) return; // can't change your own status from the UI
-    mutate(
-      () => {
-        const arr = _state.profiles || [];
-        const i = arr.findIndex(p => p.id === id);
-        if (i >= 0) { arr[i] = { ...arr[i], status }; _state.profiles = [...arr]; }
-      },
-      () => sb.from('profiles').update({ status }).eq('id', id),
-    );
-  },
-  approveUser(id) { this.setMemberStatus(id, 'approved'); },
-  rejectUser(id)  { this.setMemberStatus(id, 'rejected'); },
-
-  // ---------- danger zone ----------
-  reset() {
-    if (SUPA) {
-      if (confirm('Sign out of MySalma on this device?')) this.signOut();
-      return;
-    }
-    if (confirm('Reset MySalma? This clears all your posts, reactions, photos and profile changes on this device.')) {
-      localStorage.removeItem(LS_KEY); localStorage.removeItem(PREF_KEY); location.reload();
-    }
-  },
+          {section === 'appearance' && (<>
+            <h3 style={{fontSize:20, marginBottom:18}}>Appearance</h3>
+            <div style={{padding:14, background:'var(--cream)', borderRadius:12, marginBottom:18, fontSize:13.5}}>
+              ✨ Tip — switch on <strong>Tweaks</strong> from the toolbar to live-edit colors, density, fonts and layout.
+            </div>
+            <div className="settings-row"><div><h4>Theme</h4></div><span className="pill pill-teal">Warm cream</span></div>
+            <div className="settings-row"><div><h4>Density</h4></div><span>Comfortable</span></div>
+            <div className="settings-row"><div><h4>Reduce motion</h4></div><span>Off</span></div>
+          </>)}
+        </div>
+      </div>
+    </>
+  );
 };
 
-Object.assign(window, { Store, useStore, readScaledImage, dayKey });
+Object.assign(window, {
+  ComposerScreen, NotifsScreen, ChatScreen, SearchScreen, OnboardingScreen, SettingsScreen
+});

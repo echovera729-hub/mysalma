@@ -1,598 +1,577 @@
-// MySalma — remaining screens: composer, notifications, chat, search, onboarding, settings
+// MySalma — auxiliary rail widgets + remaining screens
 
-const { useState: useS3 } = React;
+const { useState: useState2 } = React;
 
 // ============================================================
-//  COMPOSER (modal-style screen)
+//  AUX rail widgets
 // ============================================================
-const ComposerScreen = ({ onClose }) => {
-  const [type, setType] = useS3('moment'); // moment | kudos | win | capsule | watch
-  const [body, setBody] = useS3('');
-  const [photos, setPhotos] = useS3([]); // [{ src }]
-  const [kudosTo, setKudosTo] = useS3([]); // typed names
-  const [kudosInput, setKudosInput] = useS3('');
-  const [tag, setTag] = useS3('Calm under pressure');
-  const [capsuleWhen, setCapsuleWhen] = useS3('1 year');
-  const [busy, setBusy] = useS3(false);
-  const fileRef = React.useRef(null);
-  const addKudosName = () => { const n = kudosInput.trim(); if (n && !kudosTo.includes(n)) setKudosTo([...kudosTo, n]); setKudosInput(''); };
+const AuxSpotlight = () => (
+  <div className="aux-section">
+    <div className="spotlight">
+      <span className="spotlight-label">✦ this week's spotlight</span>
+      <div style={{marginTop:14, position:'relative'}}>
+        <div style={{fontSize:14, lineHeight:1.5, color:'rgba(255,255,255,.9)'}}>
+          Each week, Rehab.Wisal features a colleague nominated by their peers — a small way to make sure everyone gets seen.
+        </div>
+        <div className="spotlight-foot" style={{position:'relative', marginTop:14}}>
+          <span style={{opacity:.8, fontSize:12.5}}>No nominations yet</span>
+          <button className="btn btn-sm" style={{background:'var(--butter)', color:'#8C6A1A', borderColor:'var(--butter)'}}>Nominate someone</button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
-  const addPhotos = async (files) => {
-    setBusy(true);
-    const out = [];
-    for (const f of Array.from(files).slice(0, 4)) {
-      try { out.push({ src: await readScaledImage(f) }); } catch (e) {}
-    }
-    setPhotos(p => [...p, ...out].slice(0, 4));
-    setBusy(false);
-  };
-
-  const canPost = !!(body.trim() || photos.length || (type === 'kudos' && kudosTo.length));
-
-  const submit = () => {
-    if (!canPost) return;
-    const base = { body: body.trim(), media: photos.length ? photos : undefined };
-    if (type === 'kudos') {
-      base.featured = 'kudos'; base.kudosNames = kudosTo; base.kudosTag = tag;
-      if (!base.body) base.body = `A bright spot for ${kudosTo.join(' & ') || 'a teammate'} — ${tag}. ✦`;
-    }
-    if (type === 'win') base.featured = 'win';
-    if (type === 'capsule') base.capsule = capsuleWhen;
-    Store.addPost(base);
-    onClose();
-  };
-
-  const types = [
-    { id: 'moment', label: 'Moment',      emoji: '✨', desc: 'Share a photo, story, or update' },
-    { id: 'kudos',  label: 'Bright Spot', emoji: '✦',  desc: 'Public kudos for a coworker' },
-    { id: 'win',    label: 'Win Wall',    emoji: '🌱', desc: 'Celebrate a patient or staff win' },
-    { id: 'capsule',label: 'Time Capsule',emoji: '⏳', desc: 'Schedule for the future' },
-    { id: 'watch',  label: 'Watch Party', emoji: '📺', desc: 'Co-watch / co-listen room' },
-  ];
-
+const AuxEvents = ({ go }) => {
+  useStore();
+  const events = Store.events().slice().sort((a,b)=>(a.d||0)-(b.d||0)).slice(0, 4);
   return (
-    <div className="modal-overlay" style={{
-      position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)',
-      display:'grid', placeItems:'center', padding:20, zIndex:200
-    }} onClick={onClose}>
-      <div className="modal-sheet" style={{
-        width:'min(640px, 100%)', maxHeight:'90vh', overflow:'auto',
-        background:'var(--cream)', borderRadius:24, padding:28,
-        boxShadow:'0 30px 60px rgba(0,0,0,.3)', border:'1px solid var(--line)'
-      }} onClick={e=>e.stopPropagation()}>
-        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18}}>
-          <h2 style={{fontSize:22}}>New post</h2>
-          <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
+    <div className="aux-section">
+      <div className="aux-title">Coming up <span className="more" onClick={()=>go && go('events')}>All →</span></div>
+      {events.length === 0 ? (
+        <div style={{fontSize:13, color:'var(--ink-soft)', padding:'8px 0', lineHeight:1.5}}>
+          Nothing scheduled yet. <span style={{color:'var(--teal-deep)', fontWeight:600, cursor:'pointer'}} onClick={()=>go && go('events')}>Create an event →</span>
         </div>
-
-        <div style={{display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:18}}>
-          {types.map(t => (
-            <button key={t.id} onClick={()=>setType(t.id)} style={{
-              border: `1.5px solid ${type===t.id ? 'var(--teal)' : 'var(--line)'}`,
-              background: type===t.id ? 'var(--teal-tint)' : 'var(--paper)',
-              borderRadius:14, padding:'12px 8px', cursor:'pointer',
-              display:'flex', flexDirection:'column', alignItems:'center', gap:6,
-              fontFamily:'inherit', transition:'all .15s'
-            }}>
-              <span style={{fontSize:22}}>{t.emoji}</span>
-              <span style={{fontSize:12, fontWeight:600, color:'var(--navy)'}}>{t.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <div style={{display:'flex', gap:12, alignItems:'flex-start', marginBottom:14}}>
-          <Avatar person="me" size="md" />
-          <div style={{flex:1}}>
-            <div style={{fontWeight:600, fontSize:14, color:'var(--navy)'}}>{Store.profile().name}</div>
-            <div style={{display:'flex', gap:6, marginTop:4}}>
-              <span className="pill" style={{fontSize:11, cursor:'pointer'}}>👥 Whole hospital</span>
-              <span className="pill" style={{fontSize:11, cursor:'pointer'}}>{(TEAMS[Store.profile().team]||{}).label || 'My team'}</span>
-            </div>
+      ) : events.map(e => (
+        <div key={e.id} className="event-mini">
+          <div className="event-date">
+            <div className="event-date-d">{e.d}</div>
+            <div className="event-date-m">{e.m}</div>
+          </div>
+          <div className="event-info">
+            <div className="event-name">{e.title}</div>
+            <div className="event-when">{e.time}{e.where ? ' · ' + e.where : ''}</div>
           </div>
         </div>
+      ))}
+    </div>
+  );
+};
 
-        {type === 'kudos' && (
-          <div style={{padding:14, background:'var(--butter-soft)', border:'1px solid #F0E5C0', borderRadius:14, marginBottom:14}}>
-            <div className="kudos-eyebrow">✦ a bright spot for…</div>
-            <div style={{display:'flex', gap:8, flexWrap:'wrap', marginTop:10, alignItems:'center'}}>
-              {kudosTo.map(n => (
-                <span key={n} style={{display:'flex', alignItems:'center', gap:6, padding:'5px 8px 5px 12px', background:'var(--navy)', color:'white', borderRadius:999, fontWeight:600, fontSize:13}}>
-                  {n}
-                  <button onClick={()=>setKudosTo(kudosTo.filter(x=>x!==n))} style={{background:'rgba(255,255,255,.2)', border:0, color:'white', width:18, height:18, borderRadius:'50%', cursor:'pointer', display:'grid', placeItems:'center', fontSize:11}}>×</button>
-                </span>
-              ))}
-              <input className="input" value={kudosInput} onChange={e=>setKudosInput(e.target.value)}
-                onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); addKudosName(); } }}
-                placeholder={kudosTo.length ? 'add another…' : "type a coworker's name…"}
-                style={{flex:1, minWidth:160, width:'auto'}} />
-            </div>
-            <div style={{marginTop:14, fontSize:12.5, fontWeight:600, color:'#8C6A1A', marginBottom:6}}>FOR…</div>
-            <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
-              {['Calm under pressure', 'Above & beyond', 'Mentor', 'Quiet hero', 'Patient whisperer', 'Team player'].map(t => (
-                <button key={t} onClick={()=>setTag(t)} style={{
-                  padding:'5px 12px', borderRadius:999,
-                  background: tag===t ? '#8C6A1A' : 'var(--paper)',
-                  color: tag===t ? 'white' : 'var(--navy)',
-                  border: `1px solid ${tag===t ? '#8C6A1A' : 'var(--line)'}`,
-                  cursor:'pointer', fontWeight:600, fontSize:12.5
-                }}>✦ {t}</button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {type === 'capsule' && (
-          <div className="capsule-card" style={{marginBottom:14}}>
-            <div className="capsule-icon">⏳</div>
-            <div className="capsule-info">
-              <div className="capsule-tag">opens for you in…</div>
-              <div style={{display:'flex', gap:6, marginTop:8}}>
-                {['1 month','6 months','1 year','5 years'].map(w => (
-                  <button key={w} onClick={()=>setCapsuleWhen(w)} style={{
-                    padding:'5px 12px', borderRadius:999,
-                    background: capsuleWhen===w ? '#524FA3' : 'var(--paper)',
-                    color: capsuleWhen===w ? 'white' : 'var(--navy)',
-                    border: `1px solid ${capsuleWhen===w ? '#524FA3' : 'var(--lavender)'}`,
-                    cursor:'pointer', fontWeight:600, fontSize:12.5
-                  }}>{w}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {type === 'win' && (
-          <div style={{padding:12, background:'var(--mint-soft)', border:'1px solid var(--mint)', borderRadius:14, marginBottom:14, fontSize:13, color:'var(--teal-deep)'}}>
-            🌱 <strong>Patient win etiquette:</strong> use first initials only, confirm consent for any photos, and skip clinical details. The Win Wall is for celebrating, not charting.
-          </div>
-        )}
-
-        {type === 'watch' && (
-          <div className="watch-card" style={{marginBottom:14}}>
-            <span className="watch-live">SETTING UP</span>
-            <h3 style={{color:'white', marginTop:10, fontSize:20}}>Watch Party</h3>
-            <p style={{margin:'6px 0 0', opacity:.85, fontSize:13.5}}>Drop a link (Youtube, internal training, podcast) — everyone in the room watches in sync.</p>
-            <input className="input" placeholder="paste link…" style={{marginTop:12, background:'rgba(255,255,255,.1)', color:'white', border:'1px solid rgba(255,255,255,.2)'}} />
-          </div>
-        )}
-
-        <textarea
-          className="input input-lg"
-          placeholder={
-            type === 'kudos' ? `${kudosTo.length ? kudosTo[0] + ' was…' : 'Tell us why they deserve this Bright Spot…'}` :
-            type === 'win'   ? "What happened? Who's it about? (initials only please)" :
-            type === 'capsule' ? "Write a note to future-you (or future-team)…" :
-            type === 'watch' ? "Optional message for the room…" :
-            "What's a bright spot from today? ✨"
-          }
-          value={body}
-          onChange={e=>setBody(e.target.value)}
-          style={{minHeight:120, resize:'vertical'}}
-        />
-
-        {photos.length > 0 && (
-          <div style={{display:'grid', gridTemplateColumns:`repeat(${Math.min(photos.length,3)},1fr)`, gap:6, marginTop:12}}>
-            {photos.map((p, i) =>
-              <div key={i} style={{position:'relative', aspectRatio:1, borderRadius:12, overflow:'hidden', backgroundImage:`url(${p.src})`, backgroundSize:'cover', backgroundPosition:'center'}}>
-                <button onClick={() => setPhotos(ph => ph.filter((_, j) => j !== i))} style={{position:'absolute', top:6, right:6, width:26, height:26, borderRadius:'50%', border:0, background:'rgba(20,36,71,.7)', color:'white', cursor:'pointer', display:'grid', placeItems:'center'}}><Icon name="close" size={14}/></button>
-              </div>
-            )}
-          </div>
-        )}
-        {busy && <div style={{fontSize:12, color:'var(--ink-soft)', marginTop:8}}>Adding photos…</div>}
-
-        <div style={{display:'flex', alignItems:'center', gap:6, marginTop:14, padding:'10px 0', borderTop:'1px solid var(--line)', borderBottom:'1px solid var(--line)'}}>
-          <input ref={fileRef} type="file" accept="image/*" multiple style={{display:'none'}}
-            onChange={e => { addPhotos(e.target.files); e.target.value = ''; }} />
-          <button className="composer-action" style={{color:'var(--teal-deep)', cursor:'pointer', background:'transparent', border:0}} onClick={() => fileRef.current && fileRef.current.click()}>
-            <Icon name="image" size={16}/> Photo
-          </button>
-          <button className="composer-action" style={{color:'#B86833', cursor:'pointer', background:'transparent', border:0}}>
-            <Icon name="video" size={16}/> Video
-          </button>
-          <button className="composer-action" style={{color:'#524FA3', cursor:'pointer', background:'transparent', border:0}}>
-            <Icon name="poll" size={16}/> Poll
-          </button>
-          <button className="composer-action" style={{color:'var(--slate)', cursor:'pointer', background:'transparent', border:0}}>
-            <Icon name="location" size={16}/> Place
-          </button>
-          <button className="composer-action" style={{color:'#C9A645', cursor:'pointer', background:'transparent', border:0}}>
-            <Icon name="smile" size={16}/> Mood
-          </button>
+const AuxCrews = ({ go }) => {
+  useStore();
+  const crews = Store.crews().slice(0, 4);
+  return (
+    <div className="aux-section">
+      <div className="aux-title">Your crews <span className="more" onClick={()=>go && go('crews')}>Discover →</span></div>
+      {crews.length === 0 ? (
+        <div style={{fontSize:13, color:'var(--ink-soft)', padding:'8px 0', lineHeight:1.5}}>
+          You haven't joined any crews. <span style={{color:'var(--teal-deep)', fontWeight:600, cursor:'pointer'}} onClick={()=>go && go('crews')}>Find your people →</span>
         </div>
+      ) : crews.map(c => (
+        <div key={c.id} className="crew-row" onClick={()=>go && go('crews')}>
+          <div className="crew-icon">{c.emoji}</div>
+          <div className="crew-info">
+            <div className="crew-name">{c.name}</div>
+            <div className="crew-meta">You're a member</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:16}}>
-          <div style={{fontSize:12, color:'var(--ink-soft)'}}>
-            {type === 'capsule' ? `📦 Sealed until ${capsuleWhen} from now` :
-             type === 'kudos' ? `✦ ${kudosTo.length} ${kudosTo.length===1?'person':'people'} · ${tag}` :
-             '👁 visible to: whole hospital'}
-          </div>
-          <div style={{display:'flex', gap:8}}>
-            <button className="btn" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={!canPost} style={!canPost ? {opacity:.5, cursor:'not-allowed'} : {}} onClick={submit}>Post{type === 'capsule' ? ' + Seal' : ''}</button>
-          </div>
+const AuxCapsule = () => {
+  useStore();
+  const capsule = Store.myPosts().find(p => p.capsule);
+  if (!capsule) return null;
+  return (
+    <div className="aux-section">
+      <div className="aux-title">Time capsule</div>
+      <div className="capsule-card">
+        <div className="capsule-icon">⏳</div>
+        <div className="capsule-info">
+          <div className="capsule-tag">sealed for {capsule.capsule}</div>
+          <div className="capsule-msg">{(capsule.body || 'A note to your future self').slice(0, 60)}</div>
+          <div className="capsule-when">You'll be reminded when it opens</div>
         </div>
       </div>
     </div>
   );
 };
 
-// ============================================================
-//  NOTIFICATIONS panel (full screen mode)
-// ============================================================
-const NotifsScreen = () => (
-  <>
-    <div className="page-head">
-      <div>
-        <div className="page-greet"><span className="hand">all caught up</span></div>
-        <h1 className="page-title">Notifications</h1>
-      </div>
-    </div>
-    <EmptyState emoji="🔔" title="You're all caught up"
-      sub="Reactions, replies, Bright Spots, event invites and mentions will land here as your team starts using MySalma." />
-  </>
-);
-
-// ============================================================
-//  CHAT screen
-// ============================================================
-const ChatScreen = () => (
-  <>
-    <div className="page-head" style={{marginBottom:14}}>
-      <div>
-        <div className="page-greet"><span className="hand">messages</span></div>
-        <h1 className="page-title">Chat</h1>
-      </div>
-    </div>
-    <EmptyState emoji="💬" title="No conversations yet"
-      sub="Direct messages and team group chats appear here once your coworkers are on MySalma. One-to-one and group threads, photos, and quick handoffs — all in one place." />
-  </>
-);
-
-// ============================================================
-//  SEARCH / DISCOVER screen
-// ============================================================
-const SearchScreen = ({ go }) => {
-  const [q, setQ] = useS3('');
+const AuxPulse = () => {
   useStore();
-  const crews = Store.crews();
+  const mood = Store.moodToday();
+  return (
+    <div className="aux-section">
+      <div className="aux-title">Floor pulse <span style={{fontSize:11, fontWeight:500, color:'var(--ink-soft)', fontFamily:'var(--font-body)'}}>Today</span></div>
+      <div className="card card-pad" style={{padding:16, textAlign:'center'}}>
+        {mood ? (<>
+          <div style={{fontSize:34, lineHeight:1}}>{MOODS.find(m=>m.id===mood)?.emoji}</div>
+          <div style={{fontSize:13.5, color:'var(--navy)', fontWeight:600, marginTop:8}}>You're feeling {MOODS.find(m=>m.id===mood)?.label.toLowerCase()} today</div>
+          <div style={{fontSize:12, color:'var(--ink-soft)', marginTop:4}}>The team's collective vibe shows here once everyone's checking in.</div>
+        </>) : (<>
+          <div style={{fontSize:34, lineHeight:1}}>🫧</div>
+          <div style={{fontSize:13.5, color:'var(--navy)', fontWeight:600, marginTop:8}}>How's your shift?</div>
+          <div style={{fontSize:12, color:'var(--ink-soft)', marginTop:4}}>Log your mood with the Pulse check-in to start tracking the floor's vibe.</div>
+        </>)}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+//  HOME
+// ============================================================
+const HomeScreen = ({ tweak, onCompose }) => {
+  const layout = tweak.feedLayout;
+  useStore();
+  const [feedTab, setFeedTab] = useState('foryou');
+  const name = Store.profile().name.split(' ')[0];
+  const myTeam = Store.profile().team || 'PT';
+  const FEED_TABS = [
+    { id: 'foryou',   label: 'For you' },
+    { id: 'following', label: 'Following' },
+    { id: 'team',     label: 'My team' },
+    { id: 'bright',   label: 'Bright Spots' },
+  ];
+  const all = Store.allPosts();
+  const meId = Store.meId();
+  const posts = all.filter(p => {
+    if (feedTab === 'team')      return FIND(p.author)?.team === myTeam;
+    if (feedTab === 'following') return p.author !== meId && p.author !== 'me' && p.author !== 'sara';
+    if (feedTab === 'bright')    return p.featured === 'kudos' || p.featured === 'win' || (p.kudos_names && p.kudos_names.length) || (p.kudosTo && p.kudosTo.length);
+    return true;
+  });
+  const emptyMsg = {
+    foryou: "Your feed is empty — share the first moment with the New post button, and it'll show up right here. ✨",
+    following: "Posts from your teammates show up here. As coworkers join Rehab.Wisal and share, this fills in.",
+    team: `Posts from your ${(TEAMS[myTeam]||{}).label || ''} team will gather here — be the first to share something. ✨`,
+    bright: "No Bright Spots yet. Send someone kudos with the New post button — it's a lovely way to start. ✦",
+  }[feedTab];
+  const today = new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
   return (
     <>
       <div className="page-head">
         <div>
-          <div className="page-greet"><span className="hand">discover</span></div>
-          <h1 className="page-title">Search &amp; explore</h1>
+          <div className="page-greet"><span className="hand">Hey {name} —</span> &nbsp;here's what's good today.</div>
+          <h1 className="page-title">Home <span style={{color:'var(--teal)'}}>·</span> <span style={{fontFamily:'var(--font-hand)', fontSize:26, color:'var(--teal-deep)'}}>{today}</span></h1>
+        </div>
+        <div className="feed-tabs">
+          {FEED_TABS.map(ft => (
+            <button key={ft.id} className={`feed-tab ${feedTab === ft.id ? 'active' : ''}`} onClick={() => setFeedTab(ft.id)}>{ft.label}</button>
+          ))}
         </div>
       </div>
-      <div className="search-bar" style={{padding:'14px 20px', marginBottom:18}}>
-        <Icon name="search" size={20}/>
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search people, crews, posts, events…" style={{fontSize:16}}/>
-        <span className="pill" style={{fontSize:11}}>⌘K</span>
+
+      {tweak.showDigest && <div style={{marginBottom:16}}><TodayCard onCompose={onCompose} /></div>}
+      {tweak.showDailyOne && <div style={{marginBottom:16}}><DailyOne /></div>}
+      {tweak.showPulse && <div style={{marginBottom:16}}><PulseCheckin /></div>}
+
+      <div style={{marginBottom:18}}>
+        <Stories onCreate={onCompose} />
       </div>
 
-      <div className="section-head"><h3>Crews to start</h3><span className="meta">interest groups across teams</span></div>
-      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:12}}>
-        {CREW_IDEAS.filter(c => !Store.hasCrew(c.name)).map(c => (
-          <div key={c.name} className="card card-pad" style={{display:'flex', flexDirection:'column', gap:8, cursor:'pointer'}} onClick={()=>Store.addCrew(c)}>
-            <div className="crew-icon" style={{width:48, height:48, fontSize:24}}>{c.emoji}</div>
-            <div style={{fontWeight:600, fontSize:14.5}}>{c.name}</div>
-            <button className="btn btn-sm" style={{alignSelf:'flex-start'}}>+ Create &amp; join</button>
+      <ComposerTrigger onClick={onCompose} />
+
+      <div className="section-head">
+        <h3 style={{fontFamily:'var(--font-display)', color:'var(--navy)'}}>{feedTab === 'bright' ? 'Bright Spots & wins' : feedTab === 'team' ? 'From my team' : feedTab === 'following' ? 'People you follow' : 'Latest moments'}</h3>
+        <span className="meta">{layout === 'cards' ? 'Cards' : layout === 'magazine' ? 'Magazine' : 'Minimal'} layout · {posts.length} post{posts.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      {posts.length === 0 && (
+        <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)', lineHeight:1.5}}>{emptyMsg}</div>
+      )}
+
+      {layout === 'cards' && (
+        <div style={{display:'flex', flexDirection:'column', gap:16}}>
+          {posts.map(p => <Post key={p.id} post={p} />)}
+        </div>
+      )}
+      {layout === 'magazine' && posts.length > 0 && <MagazineFeed posts={posts} />}
+      {layout === 'minimal' && <MinimalFeed posts={posts} />}
+    </>
+  );
+};
+
+const AuxRail = ({ tweak, go }) => (
+  <>
+    {tweak.showSpotlight && <AuxSpotlight />}
+    {tweak.showPulse && <AuxPulse />}
+    <AuxEvents go={go} />
+    {tweak.showCrews && <AuxCrews go={go} />}
+    {tweak.showCapsule && <AuxCapsule />}
+    <div style={{fontSize:11, color:'var(--ink-mute)', fontFamily:'var(--font-mono)', textAlign:'center', marginTop:20}}>
+      Rehab.Wisal · internal team space<br/>
+      made with 🫶
+    </div>
+  </>
+);
+
+// ============================================================
+//  PROFILE
+// ============================================================
+const ProfileEditor = ({ onClose }) => {
+  useStore();
+  const prof = Store.profile();
+  const [name, setName] = useState2(prof.name);
+  const [role, setRole] = useState2(prof.role);
+  const [team, setTeam] = useState2(prof.team || 'PT');
+  const [tagline, setTagline] = useState2(prof.tagline);
+  const [bio, setBio] = useState2(prof.bio);
+  const coverRef = React.useRef(null);
+  const avatarRef = React.useRef(null);
+  const lbl = { display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'14px 0 6px' };
+  const pick = async (file, key) => { try { Store.setProfile({ [key]: await readScaledImage(file, key === 'avatar' ? 512 : 1600) }); } catch (e) {} };
+  const save = () => { Store.setProfile({ name, role, team, tagline, bio }); onClose(); };
+  return (
+    <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
+      <div className="modal-sheet" style={{width:'min(560px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18}}>
+          <h2 style={{fontSize:22}}>Edit profile</h2>
+          <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
+        </div>
+        <div style={{display:'flex', gap:16, alignItems:'center', marginBottom:6}}>
+          <Avatar person="me" size="xl" />
+          <div style={{display:'flex', flexDirection:'column', gap:8}}>
+            <input ref={avatarRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ if(e.target.files[0]) pick(e.target.files[0],'avatar'); e.target.value=''; }} />
+            <input ref={coverRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ if(e.target.files[0]) pick(e.target.files[0],'cover'); e.target.value=''; }} />
+            <button className="btn btn-sm" onClick={()=>avatarRef.current.click()}><Icon name="image" size={14}/> Profile photo</button>
+            <button className="btn btn-sm" onClick={()=>coverRef.current.click()}><Icon name="image" size={14}/> Cover photo</button>
           </div>
-        ))}
-        {crews.map(c => (
-          <div key={c.id} className="card card-pad" style={{display:'flex', flexDirection:'column', gap:8}}>
-            <div className="crew-icon" style={{width:48, height:48, fontSize:24}}>{c.emoji}</div>
-            <div style={{fontWeight:600, fontSize:14.5}}>{c.name}</div>
-            <span className="pill pill-teal" style={{alignSelf:'flex-start', fontSize:11}}>✓ Joined</span>
+        </div>
+        <label style={lbl}>Name</label>
+        <input className="input" value={name} onChange={e=>setName(e.target.value)} />
+        <label style={lbl}>Role</label>
+        <input className="input" value={role} onChange={e=>setRole(e.target.value)} />
+        <label style={lbl}>Team</label>
+        <select className="input" value={team} onChange={e=>setTeam(e.target.value)}>
+          {Object.entries(TEAMS).map(([k,t]) => <option key={k} value={k}>{t.label}</option>)}
+        </select>
+        <label style={lbl}>Tagline</label>
+        <input className="input" value={tagline} onChange={e=>setTagline(e.target.value)} maxLength={48} />
+        <label style={lbl}>About</label>
+        <textarea className="input" value={bio} onChange={e=>setBio(e.target.value)} style={{minHeight:90, resize:'vertical'}} placeholder="A line or two about you…" />
+        <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:18}}>
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={save}>Save changes</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ProfileScreen = () => {
+  useStore();
+  const prof = Store.profile();
+  const team = prof.team || 'PT';
+  const [tab, setTab] = useState2('moments');
+  const [editing, setEditing] = useState2(false);
+  const myPosts = Store.myPosts();
+  const brightCount = myPosts.filter(p => p.featured === 'kudos').length;
+  const crews = Store.crews();
+  return (
+    <>
+      {prof.cover
+        ? <div className="cover" style={{background:`url(${prof.cover}) center/cover`}}></div>
+        : <ImgPh tone="teal" label="COVER — add yours with Edit profile" className="cover" />}
+      <div className="profile-head">
+        <Avatar person="me" size="xl" />
+        <div className="profile-info">
+          <div className="profile-name">{prof.name}</div>
+          <div className="profile-role">
+            <TeamPill team={team} />
+            <span className="pill pill-slate">{prof.role}</span>
+            {brightCount > 0 && <span className="pill pill-mint">⭐ {brightCount} Bright Spot{brightCount!==1?'s':''} given</span>}
+            {prof.tagline && <span style={{fontFamily:'var(--font-hand)', color:'var(--teal-deep)', fontSize:18}}>"{prof.tagline}"</span>}
+          </div>
+        </div>
+        <div style={{display:'flex', gap:8, paddingBottom:8}}>
+          <button className="btn btn-primary" onClick={() => setEditing(true)}><Icon name="settings" size={16}/> Edit profile</button>
+          <button className="btn btn-icon"><Icon name="more"/></button>
+        </div>
+      </div>
+      {editing && <ProfileEditor onClose={() => setEditing(false)} />}
+
+      <div className="profile-tabs">
+        {['moments','photos','crews','about'].map(t => (
+          <div key={t} className={`profile-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
+            {t[0].toUpperCase()+t.slice(1)}
           </div>
         ))}
       </div>
 
-      <div style={{marginTop:22}}>
-        <EmptyState emoji="🔍" title="People &amp; posts will be searchable here"
-          sub="Once your hospital is on MySalma, search finds coworkers, Bright Spots, wins, events and photos across every team." />
+      <div className="profile-content-grid" style={{display:'grid', gridTemplateColumns:'1fr 320px', gap:24}}>
+        <div style={{display:'flex', flexDirection:'column', gap:16, minWidth:0}}>
+          {tab === 'moments' && myPosts.map(p => <Post key={p.id} post={p} />)}
+          {tab === 'moments' && myPosts.length === 0 && (
+            <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>No moments yet — share your first one with the <strong>New post</strong> button. ✨</div>
+          )}
+          {tab === 'photos' && (() => {
+            const pics = myPosts.flatMap(p => (p.media || []).filter(m => m.src));
+            return pics.length ? (
+              <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8}}>
+                {pics.map((m, i) => <div key={i} style={{aspectRatio:1, borderRadius:12, backgroundImage:`url(${m.src})`, backgroundSize:'cover', backgroundPosition:'center'}}/>)}
+              </div>
+            ) : (
+              <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>Photos you post will collect here. 📸</div>
+            );
+          })()}
+          {tab === 'crews' && (crews.length ? (
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+              {crews.map(c => (
+                <div key={c.id} className="card card-pad" style={{display:'flex', gap:12, alignItems:'center'}}>
+                  <div className="crew-icon" style={{width:48, height:48, fontSize:22}}>{c.emoji}</div>
+                  <div><div style={{fontWeight:600, color:'var(--navy)'}}>{c.name}</div><div style={{fontSize:12, color:'var(--ink-soft)'}}>Member</div></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>You haven't joined any crews yet — find them under <strong>Crews</strong>. ☕</div>
+          ))}
+          {tab === 'about' && (
+            <div className="card card-pad">
+              <h3 style={{marginBottom:12}}>About</h3>
+              {prof.bio
+                ? <p style={{margin:0, color:'var(--ink)'}}>{prof.bio}</p>
+                : <p style={{margin:0, color:'var(--ink-soft)'}}>Add a short bio from <strong>Edit profile</strong> so coworkers get to know you.</p>}
+              <div className="divider"></div>
+              <div style={{display:'grid', gridTemplateColumns:'140px 1fr', rowGap:10, fontSize:14}}>
+                <span className="muted">Team</span><span>{(TEAMS[team]||{}).label}</span>
+                <span className="muted">Role</span><span>{prof.role}</span>
+              </div>
+            </div>
+          )}
+        </div>
+        <div>
+          <div className="card card-pad">
+            <h3 style={{fontSize:16, marginBottom:10}}>Coworkers</h3>
+            <p style={{fontSize:13, color:'var(--ink-soft)', margin:0, lineHeight:1.5}}>
+              Your team and connections will appear here once your hospital is set up on Rehab.Wisal.
+            </p>
+          </div>
+        </div>
       </div>
     </>
   );
 };
 
 // ============================================================
-//  ONBOARDING flow
+//  CREWS — create & join interest groups
 // ============================================================
-const OnboardingScreen = ({ onDone }) => {
-  const [step, setStep] = useS3(0);
-  const [name, setName] = useS3('');
-  const [role, setRole] = useS3('');
-  const [team, setTeam] = useS3(null);
-  const [mood, setMood] = useS3(null);
-  const [crews, setCrews] = useS3([]);
-
-  const finish = () => {
-    const patch = {};
-    if (name.trim()) patch.name = name.trim();
-    if (role.trim()) patch.role = role.trim();
-    if (team) patch.team = team;
-    if (Object.keys(patch).length) Store.setProfile(patch);
-    if (mood) Store.setMood(mood);
-    crews.forEach(idx => Store.addCrew(CREW_IDEAS[idx]));
-    onDone();
-  };
-
-  const steps = [
-    {
-      emoji: '👋',
-      title: <>Welcome to <span style={{color:'var(--teal)'}}>MySalma</span></>,
-      sub: 'A little corner of the internet just for our team. Photos, wins, weird-shift-stories, the occasional banana bread sighting.',
-      body: (
-        <div style={{marginTop:22}}>
-          <div style={{display:'flex', gap:12}}>
-            <div style={{flex:1}}>
-              <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Your name</label>
-              <input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Sara Mendoza" />
-            </div>
-            <div style={{flex:1}}>
-              <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Your role</label>
-              <input className="input" value={role} onChange={e=>setRole(e.target.value)} placeholder="e.g. Physiotherapist" />
-            </div>
-          </div>
-          <div style={{marginTop:16, padding:16, background:'var(--cream)', borderRadius:14, border:'1px solid var(--line)'}}>
-            <div style={{display:'flex', gap:14, alignItems:'flex-start'}}>
-              <span style={{fontSize:24}}>🤝</span>
-              <div style={{fontSize:13.5, lineHeight:1.55, color:'var(--ink)'}}>
-                <strong style={{color:'var(--navy)'}}>The promise.</strong> This space is internal-only. Patient details stay anonymous. Pulse moods are aggregate. You can mute, leave, or quit anytime. Be kind, be real.
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      emoji: '🩺',
-      title: 'Which team are you on?',
-      sub: "We'll auto-add you to the right channels — you can always tweak this later.",
-      body: (
-        <div className="team-select-grid">
-          {Object.entries(TEAMS).map(([k, t]) => (
-            <div key={k} className={`team-select-card ${team===k?'selected':''}`} onClick={()=>setTeam(k)}>
-              <div className="team-select-icon">{
-                {PT:'🦵', OT:'✋', SLP:'🗣️', RT:'🎨', NUR:'💉', ADM:'📋', RES:'🫁', DIE:'🥗'}[k]
-              }</div>
-              <div className="team-select-name">{t.label}</div>
-              <div className="team-select-desc">{
-                {PT:'Movement & strength', OT:'Daily living skills', SLP:'Speech & swallow', RT:'Music, art, play', NUR:'Care & coordination', ADM:'Behind the scenes', RES:'Breath & airways', DIE:'Nutrition'}[k]
-              }</div>
-            </div>
-          ))}
-        </div>
-      )
-    },
-    {
-      emoji: '✨',
-      title: "Find your crews",
-      sub: "Mini-communities by interest, not job. You can join more later.",
-      body: (
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:20}}>
-          {CREW_IDEAS.map((c, idx) => {
-            const on = crews.includes(idx);
-            return (
-              <div key={c.name} onClick={()=>setCrews(on ? crews.filter(x=>x!==idx) : [...crews, idx])} style={{
-                display:'flex', gap:10, alignItems:'center', padding:12, borderRadius:12,
-                border:`1.5px solid ${on?'var(--teal)':'var(--line)'}`,
-                background: on ? 'var(--teal-tint)' : 'var(--paper)',
-                cursor:'pointer'
-              }}>
-                <div className="crew-icon">{c.emoji}</div>
-                <div style={{flex:1, minWidth:0}}>
-                  <div style={{fontWeight:600, fontSize:13.5}}>{c.name}</div>
-                </div>
-                {on && <Icon name="check" size={18} style={{color:'var(--teal)'}} />}
-              </div>
-            );
-          })}
-        </div>
-      )
-    },
-    {
-      emoji: '🫧',
-      title: 'How are you, today?',
-      sub: "We'll ask once a shift. It's anonymous in aggregate — only your team's vibe shape is shared. (You can skip whenever.)",
-      body: (
-        <div className="pulse-moods" style={{justifyContent:'center', marginTop:24}}>
-          {MOODS.map(m => (
-            <button key={m.id} className={`mood-chip ${mood === m.id ? 'selected' : ''}`} onClick={() => setMood(m.id)} style={{minWidth:70, padding:'12px 14px'}}>
-              <span className="mood-emoji" style={{fontSize:28}}>{m.emoji}</span>
-              <span className="mood-name">{m.label}</span>
-            </button>
-          ))}
-        </div>
-      )
-    },
-    {
-      emoji: '🌿',
-      title: name.trim() ? `You're all set, ${name.trim().split(' ')[0]}.` : "You're all set.",
-      sub: "Welcome to the team's space. Three things to try first:",
-      body: (
-        <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:20}}>
-          {[
-            ['✨','Share your first Moment — even a coffee photo counts'],
-            ['✦','Send a Bright Spot to someone who helped you this week'],
-            ['📅','Plan an event, or start a crew for something you love'],
-          ].map(([e,t]) => (
-            <div key={t} style={{display:'flex', gap:14, padding:14, background:'var(--cream)', borderRadius:12, border:'1px solid var(--line)'}}>
-              <span style={{fontSize:22}}>{e}</span>
-              <span style={{fontSize:14, color:'var(--ink)'}}>{t}</span>
-            </div>
-          ))}
-        </div>
-      )
-    }
-  ];
-
-  const s = steps[step];
-
+const CrewsScreen = () => {
+  useStore();
+  const [creating, setCreating] = useState2(false);
+  const [emoji, setEmoji] = useState2('🌟');
+  const [cname, setCname] = useState2('');
+  const mine = Store.crews();
+  const ideas = CREW_IDEAS.filter(i => !Store.hasCrew(i.name));
+  const create = () => { if (cname.trim()) { Store.addCrew({ emoji, name: cname.trim() }); setCname(''); setEmoji('🌟'); setCreating(false); } };
   return (
-    <div className="onboard">
-      <div className="onboard-card">
-        <div className="onboard-steps">
-          {steps.map((_, i) => <div key={i} className={`onboard-step ${i<step?'done':''} ${i===step?'active':''}`}></div>)}
+    <>
+      <div className="page-head">
+        <div>
+          <div className="page-greet"><span className="hand">find your people</span></div>
+          <h1 className="page-title">Crews</h1>
         </div>
-        <div className="onboard-emoji">{s.emoji}</div>
-        <h2 className="onboard-title" style={{marginTop:12}}>{s.title}</h2>
-        <p className="onboard-sub">{s.sub}</p>
-        {s.body}
-        <div className="onboard-actions">
-          <button className="btn btn-ghost" onClick={() => step === 0 ? onDone() : setStep(s => s-1)}>
-            {step === 0 ? 'Skip tour' : '← Back'}
-          </button>
-          <button className="btn btn-primary" onClick={() => step === steps.length-1 ? finish() : setStep(s => s+1)}>
-            {step === steps.length-1 ? 'Take me in →' : 'Next →'}
-          </button>
+        <button className="btn btn-primary" onClick={()=>setCreating(c=>!c)}><Icon name="plus" size={16}/> Create a crew</button>
+      </div>
+
+      <p style={{fontSize:14.5, color:'var(--ink-soft)', maxWidth:680, marginTop:-8, marginBottom:18, lineHeight:1.5}}>
+        Crews are interest groups that cross teams — coffee lovers, trail walkers, new parents. Connection beyond job titles.
+      </p>
+
+      {creating && (
+        <div className="card card-pad" style={{marginBottom:20, display:'flex', gap:12, alignItems:'flex-end', flexWrap:'wrap'}}>
+          <div>
+            <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Icon</label>
+            <div style={{display:'flex', gap:6}}>
+              {['🌟','☕','🥾','📚','🌿','🐾','🍼','🍜','🎧','🎨','🏃','🧩'].map(e =>
+                <button key={e} onClick={()=>setEmoji(e)} style={{fontSize:20, width:40, height:40, borderRadius:10, border:`1.5px solid ${emoji===e?'var(--teal)':'var(--line)'}`, background:emoji===e?'var(--teal-tint)':'var(--paper)', cursor:'pointer'}}>{e}</button>
+              )}
+            </div>
+          </div>
+          <div style={{flex:1, minWidth:200}}>
+            <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Crew name</label>
+            <input className="input" value={cname} onChange={e=>setCname(e.target.value)} placeholder="e.g. Night Owls" onKeyDown={e=>{if(e.key==='Enter')create();}} />
+          </div>
+          <button className="btn btn-primary" onClick={create} disabled={!cname.trim()} style={!cname.trim()?{opacity:.5}:{}}>Create</button>
+        </div>
+      )}
+
+      {mine.length > 0 && (<>
+        <div className="section-head"><h3>Your crews</h3><span className="meta">{mine.length} joined</span></div>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px,1fr))', gap:12, marginBottom:8}}>
+          {mine.map(c => (
+            <div key={c.id} className="card card-pad" style={{display:'flex', gap:12, alignItems:'center'}}>
+              <div className="crew-icon" style={{width:48, height:48, fontSize:22}}>{c.emoji}</div>
+              <div style={{flex:1, minWidth:0}}>
+                <div style={{fontWeight:600, color:'var(--navy)'}}>{c.name}</div>
+                <div style={{fontSize:12, color:'var(--ink-soft)'}}>You're a member</div>
+              </div>
+              <button className="btn btn-sm btn-ghost" onClick={()=>Store.leaveCrew(c.id)}>Leave</button>
+            </div>
+          ))}
+        </div>
+      </>)}
+
+      <div className="section-head"><h3>{mine.length ? 'Discover more crews' : 'Popular crew ideas'}</h3><span className="meta">tap to join</span></div>
+      {(() => {
+        const discover = Store.discoverCrews();
+        const ideaCards = CREW_IDEAS.filter(i => !Store.allCrews().some(c => c.name.toLowerCase() === i.name.toLowerCase()));
+        if (discover.length === 0 && ideaCards.length === 0) {
+          return <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>You're in every crew going — make your own above! 🎉</div>;
+        }
+        return (
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:12}}>
+            {discover.map(c => (
+              <div key={c.id} className="card card-pad" style={{display:'flex', flexDirection:'column', gap:10}}>
+                <div className="crew-icon" style={{width:48, height:48, fontSize:24}}>{c.emoji}</div>
+                <div style={{fontWeight:600, fontSize:14.5}}>{c.name}</div>
+                <div style={{fontSize:12, color:'var(--ink-soft)'}}>{Store.crewMemberCount(c.id)} member{Store.crewMemberCount(c.id)!==1?'s':''}</div>
+                <button className="btn btn-sm" style={{alignSelf:'flex-start'}} onClick={()=>Store.joinCrew(c.id)}>+ Join</button>
+              </div>
+            ))}
+            {ideaCards.map(c => (
+              <div key={c.name} className="card card-pad" style={{display:'flex', flexDirection:'column', gap:10, cursor:'pointer'}} onClick={()=>Store.addCrew(c)}>
+                <div className="crew-icon" style={{width:48, height:48, fontSize:24}}>{c.emoji}</div>
+                <div style={{fontWeight:600, fontSize:14.5}}>{c.name}</div>
+                <button className="btn btn-sm" style={{alignSelf:'flex-start'}}>+ Create &amp; join</button>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+    </>
+  );
+};
+
+// ============================================================
+//  EVENTS — create & RSVP
+// ============================================================
+const EventForm = ({ onClose }) => {
+  const [title, setTitle] = useState2('');
+  const [date, setDate] = useState2('');
+  const [time, setTime] = useState2('');
+  const [where, setWhere] = useState2('');
+  const [tag, setTag] = useState2('Social');
+  const [color, setColor] = useState2('peach');
+  const lbl = { display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'14px 0 6px' };
+  const submit = () => {
+    if (!title.trim()) return;
+    let d = '', m = 'MAY', day = '';
+    if (date) { const dt = new Date(date + 'T00:00'); d = dt.getDate(); m = dt.toLocaleDateString([], {month:'short'}).toUpperCase(); day = dt.toLocaleDateString([], {weekday:'long'}); }
+    Store.addEvent({ title: title.trim(), d, m, day, time: time || 'TBD', where: where.trim(), tag, color });
+    onClose();
+  };
+  return (
+    <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
+      <div className="modal-sheet" style={{width:'min(520px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
+          <h2 style={{fontSize:22}}>New event</h2>
+          <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
+        </div>
+        <label style={lbl}>Title *</label>
+        <input className="input" value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Potluck Friday — Comfort Food" />
+        <div style={{display:'flex', gap:12}}>
+          <div style={{flex:1}}><label style={lbl}>Date</label><input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
+          <div style={{flex:1}}><label style={lbl}>Time</label><input className="input" value={time} onChange={e=>setTime(e.target.value)} placeholder="12:30 PM" /></div>
+        </div>
+        <label style={lbl}>Location</label>
+        <input className="input" value={where} onChange={e=>setWhere(e.target.value)} placeholder="e.g. Staff Lounge" />
+        <label style={lbl}>Category</label>
+        <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+          {[['Social','peach'],['Wellness','mint'],['Learning','lavender'],['Crew','butter'],['Patient','navy'],['Volunteer','mint']].map(([t,c]) => (
+            <button key={t} onClick={()=>{setTag(t);setColor(c);}} className={`pill ${tag===t?'pill-teal':''}`} style={{cursor:'pointer', border: tag===t?'1.5px solid var(--teal)':'1.5px solid var(--line)'}}>{t}</button>
+          ))}
+        </div>
+        <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:20}}>
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={!title.trim()} style={!title.trim()?{opacity:.5}:{}} onClick={submit}>Create event</button>
         </div>
       </div>
     </div>
   );
 };
 
-// ============================================================
-//  SETTINGS
-// ============================================================
-const SettingsScreen = () => {
+const EventsScreen = () => {
+  const [view, setView] = useState2('list');
+  const [creating, setCreating] = useState2(false);
   useStore();
-  const prof = Store.profile();
-  const [section, setSection] = useS3('account');
-  const avRef = React.useRef(null);
-  const setAvatar = async (file) => { try { Store.setProfile({ avatar: await readScaledImage(file, 512) }); } catch (e) {} };
-  const [toggles, setToggles] = useS3({
-    quietMode: true,
-    pulse: true,
-    capsule: true,
-    kudos: true,
-    digest: false,
-    nightShift: false,
-    away: false,
-  });
-  const T = (k, txt, sub) => (
-    <div className="settings-row">
-      <div className="settings-row-info"><h4>{txt}</h4><p>{sub}</p></div>
-      <div className={`toggle ${toggles[k]?'on':''}`} onClick={() => setToggles(t => ({...t, [k]:!t[k]}))}></div>
-    </div>
-  );
-
+  const events = Store.events().slice().sort((a,b)=>(a.d||99)-(b.d||99));
   return (
     <>
       <div className="page-head">
-        <h1 className="page-title">Settings</h1>
-      </div>
-      <div className="settings-grid">
-        <div className="settings-nav">
-          {[
-            ['account','Account'],
-            ['privacy','Privacy & Pulse'],
-            ['notifs','Notifications'],
-            ['shift','Shift & Quiet hours'],
-            ['appearance','Appearance'],
-            ['team','My team & crews'],
-            ['help','Help & feedback']
-          ].map(([k,l]) => (
-            <button key={k} className={`nav-item ${section===k?'active':''}`} onClick={()=>setSection(k)}>
-              {l}
-            </button>
-          ))}
+        <div>
+          <div className="page-greet"><span className="hand">coming up</span></div>
+          <h1 className="page-title">Events</h1>
         </div>
-        <div className="card card-pad" style={{padding:24}}>
-          {section === 'account' && (<>
-            <h3 style={{fontSize:20, marginBottom:18}}>Account</h3>
-            {Store.mode === 'supabase' && (() => {
-              const admin = Store.isAdmin();
-              const status = Store.myStatus();
-              const stMeta = { approved: ['✓ Approved', 'pill-teal'], pending: ['⏳ Pending', 'pill-butter'], rejected: ['Rejected', 'pill-blush'] }[status] || ['—', 'pill'];
-              return (
-                <div style={{display:'flex', alignItems:'center', gap:14, padding:'14px 16px', marginBottom:20, borderRadius:'var(--r-md)',
-                  background: admin ? 'linear-gradient(135deg, var(--teal-tint), var(--mint-soft))' : 'var(--cream)', border:'1px solid var(--line)'}}>
-                  <div style={{width:46, height:46, borderRadius:12, flexShrink:0, display:'grid', placeItems:'center', fontSize:22,
-                    background: admin ? 'var(--navy)' : 'var(--paper)', color: admin ? 'white' : 'var(--ink-soft)', border: admin ? 'none' : '1px solid var(--line)'}}>
-                    {admin ? '🛡️' : '🪪'}
-                  </div>
-                  <div style={{flex:1, minWidth:0}}>
-                    <div style={{fontWeight:700, fontSize:15, color:'var(--navy)'}}>{admin ? 'Administrator' : 'Team member'}</div>
-                    <div style={{fontSize:12.5, color:'var(--ink-soft)'}}>{admin ? 'You can approve or reject new sign-ups in the Approvals tab.' : 'Standard member access.'}</div>
-                  </div>
-                  <span className={`pill ${stMeta[1]}`}>{stMeta[0]}</span>
+        <div style={{display:'flex', gap:8}}>
+          <div className="feed-tabs">
+            <button className={`feed-tab ${view==='list'?'active':''}`} onClick={()=>setView('list')}>List</button>
+            <button className={`feed-tab ${view==='calendar'?'active':''}`} onClick={()=>setView('calendar')}>Calendar</button>
+          </div>
+          <button className="btn btn-primary" onClick={()=>setCreating(true)}><Icon name="plus" size={16}/> New event</button>
+        </div>
+      </div>
+
+      {events.length === 0 ? (
+        <EmptyState emoji="📅" title="No events yet"
+          sub="Plan a potluck, a CEU session, a trail walk, a talent show — anything that brings the team together. Create the first one."
+          action="Create an event" onAction={()=>setCreating(true)} />
+      ) : view === 'list' ? (
+        <div style={{display:'flex', flexDirection:'column', gap:14}}>
+          {events.map(e => (
+            <div key={e.id} className="event-card">
+              <div className={`event-banner ${e.color}`}>
+                <div className="event-banner-d">{e.d || '·'}</div>
+                <div className="event-banner-m">{e.m}</div>
+              </div>
+              <div className="event-content">
+                <div style={{display:'flex', gap:6, marginBottom:4}}>
+                  <span className="pill" style={{fontSize:11}}>{e.tag}</span>
+                  {e.day && <span className="pill pill-slate" style={{fontSize:11}}>{e.day}</span>}
                 </div>
-              );
-            })()}
-            <div style={{display:'flex', gap:18, alignItems:'center', marginBottom:24}}>
-              <Avatar person="me" size="xl" />
-              <div>
-                <div style={{fontWeight:600, fontSize:18, color:'var(--navy)'}}>{prof.name}</div>
-                <div style={{color:'var(--ink-soft)'}}>{prof.name.toLowerCase().replace(/[^a-z]+/g,'.')}@salma-rehab.org</div>
-                <div style={{marginTop:8, display:'flex', gap:8}}>
-                  <input ref={avRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ if(e.target.files[0]) setAvatar(e.target.files[0]); e.target.value=''; }} />
-                  <button className="btn btn-sm" onClick={()=>avRef.current.click()}>Change photo</button>
-                  {prof.avatar && <button className="btn btn-sm btn-ghost" onClick={()=>Store.setProfile({avatar:null})}>Remove</button>}
+                <div className="event-title">{e.title}</div>
+                <div className="event-detail">
+                  <span><Icon name="clock" size={14}/> {e.time}</span>
+                  {e.location && <span><Icon name="location" size={14}/> {e.location}</span>}
+                  <span><Icon name="crew" size={14}/> {Store.goingCount(e.id)} going</span>
+                </div>
+                <div className="event-foot">
+                  <span style={{display:'flex', gap:8, alignItems:'center', fontSize:13}}>
+                    <Avatar person={FIND(e.host)} size="sm" />
+                    <span className="muted">hosted by <strong style={{color:'var(--navy)'}}>{e.host === Store.meId() || e.host === 'me' ? 'you' : (FIND(e.host)||{}).first || 'a teammate'}</strong></span>
+                  </span>
+                  <div style={{display:'flex', gap:6}}>
+                    {(e.host === Store.meId() || e.host === 'me') && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
+                    <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : 'Going'}</button>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="settings-row">
-              <div className="settings-row-info"><h4>Display name</h4><p>How you appear to coworkers</p></div>
-              <input className="input" style={{maxWidth:240}} value={prof.name} onChange={e=>Store.setProfile({name:e.target.value})} />
-            </div>
-            <div className="settings-row">
-              <div className="settings-row-info"><h4>Role</h4><p>Your job title on your profile</p></div>
-              <input className="input" style={{maxWidth:240}} value={prof.role} onChange={e=>Store.setProfile({role:e.target.value})} />
-            </div>
-            <div className="settings-row">
-              <div className="settings-row-info"><h4>Tagline</h4><p>That hand-lettered note under your name</p></div>
-              <input className="input" style={{maxWidth:240, fontFamily:'var(--font-hand)', fontSize:17, color:'var(--teal-deep)'}} value={prof.tagline} maxLength={48} onChange={e=>Store.setProfile({tagline:e.target.value})} />
-            </div>
-            <div className="settings-row">
-              <div className="settings-row-info"><h4 style={{color:'#B05050'}}>{Store.mode === 'supabase' ? 'Sign out' : 'Reset MySalma'}</h4><p>{Store.mode === 'supabase' ? 'Sign out of MySalma on this device' : 'Clear all your posts, reactions, photos & profile changes on this device'}</p></div>
-              <button className="btn btn-sm" style={{borderColor:'#E7B7B7', color:'#B05050'}} onClick={()=>Store.reset()}>{Store.mode === 'supabase' ? 'Sign out' : 'Reset data'}</button>
-            </div>
-          </>)}
-
-          {section === 'privacy' && (<>
-            <h3 style={{fontSize:20, marginBottom:18}}>Privacy & Pulse</h3>
-            <div className="banner" style={{marginBottom:18}}>🔒 MySalma is internal-only. Nothing here is indexed publicly or shared with outside services.</div>
-            {T('pulse', 'Daily Pulse check-ins', 'Show me the mood prompt at the start of each shift')}
-            {T('kudos', 'Public Bright Spots', "Allow coworkers to send me kudos publicly. (Private ones still work.)")}
-            {T('capsule', 'Time Capsule reminders', 'Email me when a sealed capsule is about to open')}
-            <div className="settings-row"><div><h4>Profile visibility</h4><p>Who can find me in search</p></div><span className="pill pill-teal">Whole hospital</span></div>
-            <div className="settings-row"><div><h4>Patient win photos</h4><p>Default consent prompt for any Win Wall posts</p></div><span className="pill">Always ask</span></div>
-          </>)}
-
-          {section === 'shift' && (<>
-            <h3 style={{fontSize:20, marginBottom:18}}>Shift & quiet hours</h3>
-            {T('quietMode','Quiet during shift', "Mute non-urgent notifications when I'm clocked in")}
-            {T('nightShift','Night-shift mode', 'Auto dark mode + softer pings between 8pm and 6am')}
-            {T('away','Away today', "I'm off — pause Pulse, Bright Spot reminders, and group pings")}
-            <div className="settings-row"><div><h4>My usual schedule</h4><p>Helps the app know when to nudge gently</p></div><span>Mon–Thu · 7am–4pm</span></div>
-          </>)}
-
-          {section === 'notifs' && (<>
-            <h3 style={{fontSize:20, marginBottom:18}}>Notifications</h3>
-            {T('digest', 'Weekly Friday digest', 'A wrap-up of the best moments + Win Wall posts')}
-            <div className="settings-row"><div><h4>Bright Spots</h4></div><span>In-app + email</span></div>
-            <div className="settings-row"><div><h4>Mentions</h4></div><span>In-app</span></div>
-            <div className="settings-row"><div><h4>Events</h4></div><span>In-app · 1 day before</span></div>
-            <div className="settings-row"><div><h4>Spotlight nomination</h4></div><span>In-app + email</span></div>
-          </>)}
-
-          {section === 'appearance' && (<>
-            <h3 style={{fontSize:20, marginBottom:18}}>Appearance</h3>
-            <div style={{padding:14, background:'var(--cream)', borderRadius:12, marginBottom:18, fontSize:13.5}}>
-              ✨ Tip — switch on <strong>Tweaks</strong> from the toolbar to live-edit colors, density, fonts and layout.
-            </div>
-            <div className="settings-row"><div><h4>Theme</h4></div><span className="pill pill-teal">Warm cream</span></div>
-            <div className="settings-row"><div><h4>Density</h4></div><span>Comfortable</span></div>
-            <div className="settings-row"><div><h4>Reduce motion</h4></div><span>Off</span></div>
-          </>)}
+          ))}
         </div>
-      </div>
+      ) : (
+        <div className="card card-pad">
+          <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6, fontSize:11, fontWeight:600, color:'var(--ink-soft)', textTransform:'uppercase', letterSpacing:0.08, textAlign:'center', marginBottom:8}}>
+            {'Sun Mon Tue Wed Thu Fri Sat'.split(' ').map(d => <div key={d}>{d}</div>)}
+          </div>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6}}>
+            {Array.from({length:35}, (_, i) => {
+              const day = i - 2;
+              const has = events.filter(e => e.d === day);
+              const today = new Date().getDate();
+              const isToday = day === today;
+              return (
+                <div key={i} style={{aspectRatio:'1', borderRadius:10, padding:6, background: isToday ? 'var(--teal-tint)' : day > 0 && day <= 31 ? 'var(--paper)' : 'transparent', border: `1px solid ${isToday ? 'var(--teal)' : day > 0 && day <= 31 ? 'var(--line)' : 'transparent'}`, display:'flex', flexDirection:'column', gap:3}}>
+                  <div style={{fontSize:12, fontWeight:600, color: isToday ? 'var(--teal-deep)' : day > 0 && day <= 31 ? 'var(--navy)' : 'transparent'}}>{day > 0 && day <= 31 ? day : ''}</div>
+                  {has.map(e => (
+                    <div key={e.id} style={{fontSize:10, padding:'2px 5px', borderRadius:5, background:`var(--${e.color === 'navy' ? 'navy' : e.color}${e.color === 'navy' ? '' : '-soft'})`, color: e.color === 'navy' ? 'white' : 'var(--navy)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontWeight:600}}>{e.title.split(' ').slice(0,2).join(' ')}</div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {creating && <EventForm onClose={()=>setCreating(false)} />}
     </>
   );
 };
 
 Object.assign(window, {
-  ComposerScreen, NotifsScreen, ChatScreen, SearchScreen, OnboardingScreen, SettingsScreen
+  AuxRail, HomeScreen, ProfileScreen, CrewsScreen, EventsScreen,
+  AuxSpotlight, AuxEvents, AuxCrews, AuxCapsule, AuxPulse,
 });

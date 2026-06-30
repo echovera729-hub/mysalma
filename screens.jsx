@@ -1,577 +1,111 @@
-// MySalma — auxiliary rail widgets + remaining screens
+# MySalma 🫶
 
-const { useState: useState2 } = React;
+A warm, private social home for a rehabilitation hospital team — built for the people who do the holistic work of recovery: physiotherapists, occupational therapists, speech-language pathologists, recreational therapists, nurses, respiratory therapists, dieticians, and admin.
 
-// ============================================================
-//  AUX rail widgets
-// ============================================================
-const AuxSpotlight = () => (
-  <div className="aux-section">
-    <div className="spotlight">
-      <span className="spotlight-label">✦ this week's spotlight</span>
-      <div style={{marginTop:14, position:'relative'}}>
-        <div style={{fontSize:14, lineHeight:1.5, color:'rgba(255,255,255,.9)'}}>
-          Each week, MySalma features a colleague nominated by their peers — a small way to make sure everyone gets seen.
-        </div>
-        <div className="spotlight-foot" style={{position:'relative', marginTop:14}}>
-          <span style={{opacity:.8, fontSize:12.5}}>No nominations yet</span>
-          <button className="btn btn-sm" style={{background:'var(--butter)', color:'#8C6A1A', borderColor:'var(--butter)'}}>Nominate someone</button>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+Everything good about a social network — feed, profiles, groups, events, chat, reactions, stories — rebuilt for the realities of a care team, plus original features that build belonging and gently push back against burnout.
 
-const AuxEvents = ({ go }) => {
-  useStore();
-  const events = Store.events().slice().sort((a,b)=>(a.d||0)-(b.d||0)).slice(0, 4);
-  return (
-    <div className="aux-section">
-      <div className="aux-title">Coming up <span className="more" onClick={()=>go && go('events')}>All →</span></div>
-      {events.length === 0 ? (
-        <div style={{fontSize:13, color:'var(--ink-soft)', padding:'8px 0', lineHeight:1.5}}>
-          Nothing scheduled yet. <span style={{color:'var(--teal-deep)', fontWeight:600, cursor:'pointer'}} onClick={()=>go && go('events')}>Create an event →</span>
-        </div>
-      ) : events.map(e => (
-        <div key={e.id} className="event-mini">
-          <div className="event-date">
-            <div className="event-date-d">{e.d}</div>
-            <div className="event-date-m">{e.m}</div>
-          </div>
-          <div className="event-info">
-            <div className="event-name">{e.title}</div>
-            <div className="event-when">{e.time}{e.where ? ' · ' + e.where : ''}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
+---
 
-const AuxCrews = ({ go }) => {
-  useStore();
-  const crews = Store.crews().slice(0, 4);
-  return (
-    <div className="aux-section">
-      <div className="aux-title">Your crews <span className="more" onClick={()=>go && go('crews')}>Discover →</span></div>
-      {crews.length === 0 ? (
-        <div style={{fontSize:13, color:'var(--ink-soft)', padding:'8px 0', lineHeight:1.5}}>
-          You haven't joined any crews. <span style={{color:'var(--teal-deep)', fontWeight:600, cursor:'pointer'}} onClick={()=>go && go('crews')}>Find your people →</span>
-        </div>
-      ) : crews.map(c => (
-        <div key={c.id} className="crew-row" onClick={()=>go && go('crews')}>
-          <div className="crew-icon">{c.emoji}</div>
-          <div className="crew-info">
-            <div className="crew-name">{c.name}</div>
-            <div className="crew-meta">You're a member</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
+## ✨ What it does (and actually works)
 
-const AuxCapsule = () => {
-  useStore();
-  const capsule = Store.myPosts().find(p => p.capsule);
-  if (!capsule) return null;
-  return (
-    <div className="aux-section">
-      <div className="aux-title">Time capsule</div>
-      <div className="capsule-card">
-        <div className="capsule-icon">⏳</div>
-        <div className="capsule-info">
-          <div className="capsule-tag">sealed for {capsule.capsule}</div>
-          <div className="capsule-msg">{(capsule.body || 'A note to your future self').slice(0, 60)}</div>
-          <div className="capsule-when">You'll be reminded when it opens</div>
-        </div>
-      </div>
-    </div>
-  );
-};
+This is a **fully functional front-end app**. Out of the box you can:
 
-const AuxPulse = () => {
-  useStore();
-  const mood = Store.moodToday();
-  return (
-    <div className="aux-section">
-      <div className="aux-title">Floor pulse <span style={{fontSize:11, fontWeight:500, color:'var(--ink-soft)', fontFamily:'var(--font-body)'}}>Today</span></div>
-      <div className="card card-pad" style={{padding:16, textAlign:'center'}}>
-        {mood ? (<>
-          <div style={{fontSize:34, lineHeight:1}}>{MOODS.find(m=>m.id===mood)?.emoji}</div>
-          <div style={{fontSize:13.5, color:'var(--navy)', fontWeight:600, marginTop:8}}>You're feeling {MOODS.find(m=>m.id===mood)?.label.toLowerCase()} today</div>
-          <div style={{fontSize:12, color:'var(--ink-soft)', marginTop:4}}>The team's collective vibe shows here once everyone's checking in.</div>
-        </>) : (<>
-          <div style={{fontSize:34, lineHeight:1}}>🫧</div>
-          <div style={{fontSize:13.5, color:'var(--navy)', fontWeight:600, marginTop:8}}>How's your shift?</div>
-          <div style={{fontSize:12, color:'var(--ink-soft)', marginTop:4}}>Log your mood with the Pulse check-in to start tracking the floor's vibe.</div>
-        </>)}
-      </div>
-    </div>
-  );
-};
+- **Create posts** — Moments, Bright Spots (kudos), Win Wall, Time Capsules
+- **Upload real photos** from your device (they're downscaled and stored locally)
+- **React** with ❤️ and ✦, **comment**, **save**, and **delete** posts
+- **Log your mood** with the daily Pulse check-in
+- **Answer The Daily One** prompt
+- **RSVP** to events, **offer to cover** shift swaps
+- **Edit your profile** — name, role, tagline, bio, profile photo & cover photo
+- Switch **feed layouts** (cards / magazine / minimal), themes, fonts and density via the Tweaks panel
 
-// ============================================================
-//  HOME
-// ============================================================
-const HomeScreen = ({ tweak, onCompose }) => {
-  const layout = tweak.feedLayout;
-  useStore();
-  const [feedTab, setFeedTab] = useState('foryou');
-  const name = Store.profile().name.split(' ')[0];
-  const myTeam = Store.profile().team || 'PT';
-  const FEED_TABS = [
-    { id: 'foryou',   label: 'For you' },
-    { id: 'following', label: 'Following' },
-    { id: 'team',     label: 'My team' },
-    { id: 'bright',   label: 'Bright Spots' },
-  ];
-  const all = Store.allPosts();
-  const meId = Store.meId();
-  const posts = all.filter(p => {
-    if (feedTab === 'team')      return FIND(p.author)?.team === myTeam;
-    if (feedTab === 'following') return p.author !== meId && p.author !== 'me' && p.author !== 'sara';
-    if (feedTab === 'bright')    return p.featured === 'kudos' || p.featured === 'win' || (p.kudos_names && p.kudos_names.length) || (p.kudosTo && p.kudosTo.length);
-    return true;
-  });
-  const emptyMsg = {
-    foryou: "Your feed is empty — share the first moment with the New post button, and it'll show up right here. ✨",
-    following: "Posts from your teammates show up here. As coworkers join MySalma and share, this fills in.",
-    team: `Posts from your ${(TEAMS[myTeam]||{}).label || ''} team will gather here — be the first to share something. ✨`,
-    bright: "No Bright Spots yet. Send someone kudos with the New post button — it's a lovely way to start. ✦",
-  }[feedTab];
-  const today = new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
-  return (
-    <>
-      <div className="page-head">
-        <div>
-          <div className="page-greet"><span className="hand">Hey {name} —</span> &nbsp;here's what's good today.</div>
-          <h1 className="page-title">Home <span style={{color:'var(--teal)'}}>·</span> <span style={{fontFamily:'var(--font-hand)', fontSize:26, color:'var(--teal-deep)'}}>{today}</span></h1>
-        </div>
-        <div className="feed-tabs">
-          {FEED_TABS.map(ft => (
-            <button key={ft.id} className={`feed-tab ${feedTab === ft.id ? 'active' : ''}`} onClick={() => setFeedTab(ft.id)}>{ft.label}</button>
-          ))}
-        </div>
-      </div>
+> **How data is stored:** Out of the box, MySalma saves everything to your browser's `localStorage` (single-user, no setup — great for demos). It also ships with a **complete Supabase integration**: paste your project keys into `supabase-config.js` and it becomes a shared, real-time, multi-user network. See *Going multi-user with Supabase* below.
 
-      {tweak.showDigest && <div style={{marginBottom:16}}><TodayCard onCompose={onCompose} /></div>}
-      {tweak.showDailyOne && <div style={{marginBottom:16}}><DailyOne /></div>}
-      {tweak.showPulse && <div style={{marginBottom:16}}><PulseCheckin /></div>}
+---
 
-      <div style={{marginBottom:18}}>
-        <Stories onCreate={onCompose} />
-      </div>
+## 🚀 Put it online with GitHub Pages
 
-      <ComposerTrigger onClick={onCompose} />
+1. Create a new repository and **upload every file in this folder** (keep the structure — all the `.jsx`, `.css`, `.html` files and the `screenshots/` folder).
+2. In the repo, go to **Settings → Pages**.
+3. Under *Build and deployment*, set **Source: Deploy from a branch**, **Branch: `main`** (folder `/root`), and **Save**.
+4. Wait ~1 minute. Your app is live at `https://<your-username>.github.io/<repo-name>/`.
 
-      <div className="section-head">
-        <h3 style={{fontFamily:'var(--font-display)', color:'var(--navy)'}}>{feedTab === 'bright' ? 'Bright Spots & wins' : feedTab === 'team' ? 'From my team' : feedTab === 'following' ? 'People you follow' : 'Latest moments'}</h3>
-        <span className="meta">{layout === 'cards' ? 'Cards' : layout === 'magazine' ? 'Magazine' : 'Minimal'} layout · {posts.length} post{posts.length !== 1 ? 's' : ''}</span>
-      </div>
+That's it — `index.html` is the entry point and loads automatically.
 
-      {posts.length === 0 && (
-        <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)', lineHeight:1.5}}>{emptyMsg}</div>
-      )}
+> Opening `index.html` by double-clicking it **won't work** (browsers block the module loading from `file://`). It needs to be served — GitHub Pages does this for you, or run a local server: `python3 -m http.server` then open `http://localhost:8000`.
 
-      {layout === 'cards' && (
-        <div style={{display:'flex', flexDirection:'column', gap:16}}>
-          {posts.map(p => <Post key={p.id} post={p} />)}
-        </div>
-      )}
-      {layout === 'magazine' && posts.length > 0 && <MagazineFeed posts={posts} />}
-      {layout === 'minimal' && <MinimalFeed posts={posts} />}
-    </>
-  );
-};
+---
 
-const AuxRail = ({ tweak, go }) => (
-  <>
-    {tweak.showSpotlight && <AuxSpotlight />}
-    {tweak.showPulse && <AuxPulse />}
-    <AuxEvents go={go} />
-    {tweak.showCrews && <AuxCrews go={go} />}
-    {tweak.showCapsule && <AuxCapsule />}
-    <div style={{fontSize:11, color:'var(--ink-mute)', fontFamily:'var(--font-mono)', textAlign:'center', marginTop:20}}>
-      MySalma · internal team space<br/>
-      made with 🫶
-    </div>
-  </>
-);
+## 📁 What's in here
 
-// ============================================================
-//  PROFILE
-// ============================================================
-const ProfileEditor = ({ onClose }) => {
-  useStore();
-  const prof = Store.profile();
-  const [name, setName] = useState2(prof.name);
-  const [role, setRole] = useState2(prof.role);
-  const [team, setTeam] = useState2(prof.team || 'PT');
-  const [tagline, setTagline] = useState2(prof.tagline);
-  const [bio, setBio] = useState2(prof.bio);
-  const coverRef = React.useRef(null);
-  const avatarRef = React.useRef(null);
-  const lbl = { display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'14px 0 6px' };
-  const pick = async (file, key) => { try { Store.setProfile({ [key]: await readScaledImage(file, key === 'avatar' ? 512 : 1600) }); } catch (e) {} };
-  const save = () => { Store.setProfile({ name, role, team, tagline, bio }); onClose(); };
-  return (
-    <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
-      <div className="modal-sheet" style={{width:'min(560px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18}}>
-          <h2 style={{fontSize:22}}>Edit profile</h2>
-          <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
-        </div>
-        <div style={{display:'flex', gap:16, alignItems:'center', marginBottom:6}}>
-          <Avatar person="me" size="xl" />
-          <div style={{display:'flex', flexDirection:'column', gap:8}}>
-            <input ref={avatarRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ if(e.target.files[0]) pick(e.target.files[0],'avatar'); e.target.value=''; }} />
-            <input ref={coverRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{ if(e.target.files[0]) pick(e.target.files[0],'cover'); e.target.value=''; }} />
-            <button className="btn btn-sm" onClick={()=>avatarRef.current.click()}><Icon name="image" size={14}/> Profile photo</button>
-            <button className="btn btn-sm" onClick={()=>coverRef.current.click()}><Icon name="image" size={14}/> Cover photo</button>
-          </div>
-        </div>
-        <label style={lbl}>Name</label>
-        <input className="input" value={name} onChange={e=>setName(e.target.value)} />
-        <label style={lbl}>Role</label>
-        <input className="input" value={role} onChange={e=>setRole(e.target.value)} />
-        <label style={lbl}>Team</label>
-        <select className="input" value={team} onChange={e=>setTeam(e.target.value)}>
-          {Object.entries(TEAMS).map(([k,t]) => <option key={k} value={k}>{t.label}</option>)}
-        </select>
-        <label style={lbl}>Tagline</label>
-        <input className="input" value={tagline} onChange={e=>setTagline(e.target.value)} maxLength={48} />
-        <label style={lbl}>About</label>
-        <textarea className="input" value={bio} onChange={e=>setBio(e.target.value)} style={{minHeight:90, resize:'vertical'}} placeholder="A line or two about you…" />
-        <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:18}}>
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={save}>Save changes</button>
-        </div>
-      </div>
-    </div>
-  );
-};
+| File | What it is |
+|------|------------|
+| `index.html` | **The app** — entry point, loads everything below |
+| `styles.css` | The full design system (colors, type, components) |
+| `store.jsx` | Data layer — localStorage **and** Supabase, posting, photos, reactions |
+| `supabase-config.js` | Paste your Supabase keys here to turn on multi-user |
+| `supabase-schema.sql` | Run this in Supabase to create the tables + security |
+| `auth.jsx` | Sign-in / sign-up screen (Supabase mode only) |
+| `data.jsx` | Configuration — your teams, mood options, prompts (no fake content) |
+| `components.jsx` | Shared pieces — icons, avatars, pills |
+| `feed.jsx` | The feed + post card + mood check-in |
+| `engage.jsx` | The Daily One, shift hub, digest |
+| `screens.jsx` | Home, profile, crews, events |
+| `screens2.jsx` | Composer, notifications, chat, search, onboarding, settings |
+| `app.jsx` | App shell, sidebar, navigation |
+| `manifest.webmanifest` | PWA manifest — makes it installable to the home screen |
+| `sw.js` | Service worker — install + offline support |
+| `icons/` | App icons (home-screen, maskable, Apple touch) |
+| `MySalma Pitch Deck.html` | The leadership pitch deck |
 
-const ProfileScreen = () => {
-  useStore();
-  const prof = Store.profile();
-  const team = prof.team || 'PT';
-  const [tab, setTab] = useState2('moments');
-  const [editing, setEditing] = useState2(false);
-  const myPosts = Store.myPosts();
-  const brightCount = myPosts.filter(p => p.featured === 'kudos').length;
-  const crews = Store.crews();
-  return (
-    <>
-      {prof.cover
-        ? <div className="cover" style={{background:`url(${prof.cover}) center/cover`}}></div>
-        : <ImgPh tone="teal" label="COVER — add yours with Edit profile" className="cover" />}
-      <div className="profile-head">
-        <Avatar person="me" size="xl" />
-        <div className="profile-info">
-          <div className="profile-name">{prof.name}</div>
-          <div className="profile-role">
-            <TeamPill team={team} />
-            <span className="pill pill-slate">{prof.role}</span>
-            {brightCount > 0 && <span className="pill pill-mint">⭐ {brightCount} Bright Spot{brightCount!==1?'s':''} given</span>}
-            {prof.tagline && <span style={{fontFamily:'var(--font-hand)', color:'var(--teal-deep)', fontSize:18}}>"{prof.tagline}"</span>}
-          </div>
-        </div>
-        <div style={{display:'flex', gap:8, paddingBottom:8}}>
-          <button className="btn btn-primary" onClick={() => setEditing(true)}><Icon name="settings" size={16}/> Edit profile</button>
-          <button className="btn btn-icon"><Icon name="more"/></button>
-        </div>
-      </div>
-      {editing && <ProfileEditor onClose={() => setEditing(false)} />}
+No build step, no npm, no framework CLI — it runs straight in the browser.
 
-      <div className="profile-tabs">
-        {['moments','photos','crews','about'].map(t => (
-          <div key={t} className={`profile-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-            {t[0].toUpperCase()+t.slice(1)}
-          </div>
-        ))}
-      </div>
+---
 
-      <div className="profile-content-grid" style={{display:'grid', gridTemplateColumns:'1fr 320px', gap:24}}>
-        <div style={{display:'flex', flexDirection:'column', gap:16, minWidth:0}}>
-          {tab === 'moments' && myPosts.map(p => <Post key={p.id} post={p} />)}
-          {tab === 'moments' && myPosts.length === 0 && (
-            <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>No moments yet — share your first one with the <strong>New post</strong> button. ✨</div>
-          )}
-          {tab === 'photos' && (() => {
-            const pics = myPosts.flatMap(p => (p.media || []).filter(m => m.src));
-            return pics.length ? (
-              <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8}}>
-                {pics.map((m, i) => <div key={i} style={{aspectRatio:1, borderRadius:12, backgroundImage:`url(${m.src})`, backgroundSize:'cover', backgroundPosition:'center'}}/>)}
-              </div>
-            ) : (
-              <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>Photos you post will collect here. 📸</div>
-            );
-          })()}
-          {tab === 'crews' && (crews.length ? (
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-              {crews.map(c => (
-                <div key={c.id} className="card card-pad" style={{display:'flex', gap:12, alignItems:'center'}}>
-                  <div className="crew-icon" style={{width:48, height:48, fontSize:22}}>{c.emoji}</div>
-                  <div><div style={{fontWeight:600, color:'var(--navy)'}}>{c.name}</div><div style={{fontSize:12, color:'var(--ink-soft)'}}>Member</div></div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>You haven't joined any crews yet — find them under <strong>Crews</strong>. ☕</div>
-          ))}
-          {tab === 'about' && (
-            <div className="card card-pad">
-              <h3 style={{marginBottom:12}}>About</h3>
-              {prof.bio
-                ? <p style={{margin:0, color:'var(--ink)'}}>{prof.bio}</p>
-                : <p style={{margin:0, color:'var(--ink-soft)'}}>Add a short bio from <strong>Edit profile</strong> so coworkers get to know you.</p>}
-              <div className="divider"></div>
-              <div style={{display:'grid', gridTemplateColumns:'140px 1fr', rowGap:10, fontSize:14}}>
-                <span className="muted">Team</span><span>{(TEAMS[team]||{}).label}</span>
-                <span className="muted">Role</span><span>{prof.role}</span>
-              </div>
-            </div>
-          )}
-        </div>
-        <div>
-          <div className="card card-pad">
-            <h3 style={{fontSize:16, marginBottom:10}}>Coworkers</h3>
-            <p style={{fontSize:13, color:'var(--ink-soft)', margin:0, lineHeight:1.5}}>
-              Your team and connections will appear here once your hospital is set up on MySalma.
-            </p>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-};
+## 📱 Installing it like an app (PWA)
 
-// ============================================================
-//  CREWS — create & join interest groups
-// ============================================================
-const CrewsScreen = () => {
-  useStore();
-  const [creating, setCreating] = useState2(false);
-  const [emoji, setEmoji] = useState2('🌟');
-  const [cname, setCname] = useState2('');
-  const mine = Store.crews();
-  const ideas = CREW_IDEAS.filter(i => !Store.hasCrew(i.name));
-  const create = () => { if (cname.trim()) { Store.addCrew({ emoji, name: cname.trim() }); setCname(''); setEmoji('🌟'); setCreating(false); } };
-  return (
-    <>
-      <div className="page-head">
-        <div>
-          <div className="page-greet"><span className="hand">find your people</span></div>
-          <h1 className="page-title">Crews</h1>
-        </div>
-        <button className="btn btn-primary" onClick={()=>setCreating(c=>!c)}><Icon name="plus" size={16}/> Create a crew</button>
-      </div>
+MySalma is a **Progressive Web App** — once it's deployed over HTTPS (GitHub Pages does this automatically), staff can install it to their phone or desktop and run it fullscreen, with its own icon, separate from the browser.
 
-      <p style={{fontSize:14.5, color:'var(--ink-soft)', maxWidth:680, marginTop:-8, marginBottom:18, lineHeight:1.5}}>
-        Crews are interest groups that cross teams — coffee lovers, trail walkers, new parents. Connection beyond job titles.
-      </p>
+**On Android / Chrome / Edge:** an **Install** banner appears after a couple of seconds, or use the browser menu → “Install app” / “Add to Home screen.”
 
-      {creating && (
-        <div className="card card-pad" style={{marginBottom:20, display:'flex', gap:12, alignItems:'flex-end', flexWrap:'wrap'}}>
-          <div>
-            <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Icon</label>
-            <div style={{display:'flex', gap:6}}>
-              {['🌟','☕','🥾','📚','🌿','🐾','🍼','🍜','🎧','🎨','🏃','🧩'].map(e =>
-                <button key={e} onClick={()=>setEmoji(e)} style={{fontSize:20, width:40, height:40, borderRadius:10, border:`1.5px solid ${emoji===e?'var(--teal)':'var(--line)'}`, background:emoji===e?'var(--teal-tint)':'var(--paper)', cursor:'pointer'}}>{e}</button>
-              )}
-            </div>
-          </div>
-          <div style={{flex:1, minWidth:200}}>
-            <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Crew name</label>
-            <input className="input" value={cname} onChange={e=>setCname(e.target.value)} placeholder="e.g. Night Owls" onKeyDown={e=>{if(e.key==='Enter')create();}} />
-          </div>
-          <button className="btn btn-primary" onClick={create} disabled={!cname.trim()} style={!cname.trim()?{opacity:.5}:{}}>Create</button>
-        </div>
-      )}
+**On iPhone / iPad (Safari):** tap the **Share** button, then **“Add to Home Screen.”** (iOS doesn't allow a one-tap install button — the app shows a hint with these steps.)
 
-      {mine.length > 0 && (<>
-        <div className="section-head"><h3>Your crews</h3><span className="meta">{mine.length} joined</span></div>
-        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px,1fr))', gap:12, marginBottom:8}}>
-          {mine.map(c => (
-            <div key={c.id} className="card card-pad" style={{display:'flex', gap:12, alignItems:'center'}}>
-              <div className="crew-icon" style={{width:48, height:48, fontSize:22}}>{c.emoji}</div>
-              <div style={{flex:1, minWidth:0}}>
-                <div style={{fontWeight:600, color:'var(--navy)'}}>{c.name}</div>
-                <div style={{fontSize:12, color:'var(--ink-soft)'}}>You're a member</div>
-              </div>
-              <button className="btn btn-sm btn-ghost" onClick={()=>Store.leaveCrew(c.id)}>Leave</button>
-            </div>
-          ))}
-        </div>
-      </>)}
+After installing, it opens fullscreen like a native app, keeps working offline for previously-loaded content, and (once Supabase is connected) syncs live across everyone's devices.
 
-      <div className="section-head"><h3>{mine.length ? 'Discover more crews' : 'Popular crew ideas'}</h3><span className="meta">tap to join</span></div>
-      {(() => {
-        const discover = Store.discoverCrews();
-        const ideaCards = CREW_IDEAS.filter(i => !Store.allCrews().some(c => c.name.toLowerCase() === i.name.toLowerCase()));
-        if (discover.length === 0 && ideaCards.length === 0) {
-          return <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>You're in every crew going — make your own above! 🎉</div>;
-        }
-        return (
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:12}}>
-            {discover.map(c => (
-              <div key={c.id} className="card card-pad" style={{display:'flex', flexDirection:'column', gap:10}}>
-                <div className="crew-icon" style={{width:48, height:48, fontSize:24}}>{c.emoji}</div>
-                <div style={{fontWeight:600, fontSize:14.5}}>{c.name}</div>
-                <div style={{fontSize:12, color:'var(--ink-soft)'}}>{Store.crewMemberCount(c.id)} member{Store.crewMemberCount(c.id)!==1?'s':''}</div>
-                <button className="btn btn-sm" style={{alignSelf:'flex-start'}} onClick={()=>Store.joinCrew(c.id)}>+ Join</button>
-              </div>
-            ))}
-            {ideaCards.map(c => (
-              <div key={c.name} className="card card-pad" style={{display:'flex', flexDirection:'column', gap:10, cursor:'pointer'}} onClick={()=>Store.addCrew(c)}>
-                <div className="crew-icon" style={{width:48, height:48, fontSize:24}}>{c.emoji}</div>
-                <div style={{fontWeight:600, fontSize:14.5}}>{c.name}</div>
-                <button className="btn btn-sm" style={{alignSelf:'flex-start'}}>+ Create &amp; join</button>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
-    </>
-  );
-};
+> PWA install **requires HTTPS** — it won't offer to install from a plain `file://` or `http://` address. GitHub Pages serves HTTPS, so it works there out of the box.
 
-// ============================================================
-//  EVENTS — create & RSVP
-// ============================================================
-const EventForm = ({ onClose }) => {
-  const [title, setTitle] = useState2('');
-  const [date, setDate] = useState2('');
-  const [time, setTime] = useState2('');
-  const [where, setWhere] = useState2('');
-  const [tag, setTag] = useState2('Social');
-  const [color, setColor] = useState2('peach');
-  const lbl = { display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'14px 0 6px' };
-  const submit = () => {
-    if (!title.trim()) return;
-    let d = '', m = 'MAY', day = '';
-    if (date) { const dt = new Date(date + 'T00:00'); d = dt.getDate(); m = dt.toLocaleDateString([], {month:'short'}).toUpperCase(); day = dt.toLocaleDateString([], {weekday:'long'}); }
-    Store.addEvent({ title: title.trim(), d, m, day, time: time || 'TBD', where: where.trim(), tag, color });
-    onClose();
-  };
-  return (
-    <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
-      <div className="modal-sheet" style={{width:'min(520px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
-          <h2 style={{fontSize:22}}>New event</h2>
-          <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
-        </div>
-        <label style={lbl}>Title *</label>
-        <input className="input" value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Potluck Friday — Comfort Food" />
-        <div style={{display:'flex', gap:12}}>
-          <div style={{flex:1}}><label style={lbl}>Date</label><input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
-          <div style={{flex:1}}><label style={lbl}>Time</label><input className="input" value={time} onChange={e=>setTime(e.target.value)} placeholder="12:30 PM" /></div>
-        </div>
-        <label style={lbl}>Location</label>
-        <input className="input" value={where} onChange={e=>setWhere(e.target.value)} placeholder="e.g. Staff Lounge" />
-        <label style={lbl}>Category</label>
-        <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
-          {[['Social','peach'],['Wellness','mint'],['Learning','lavender'],['Crew','butter'],['Patient','navy'],['Volunteer','mint']].map(([t,c]) => (
-            <button key={t} onClick={()=>{setTag(t);setColor(c);}} className={`pill ${tag===t?'pill-teal':''}`} style={{cursor:'pointer', border: tag===t?'1.5px solid var(--teal)':'1.5px solid var(--line)'}}>{t}</button>
-          ))}
-        </div>
-        <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:20}}>
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={!title.trim()} style={!title.trim()?{opacity:.5}:{}} onClick={submit}>Create event</button>
-        </div>
-      </div>
-    </div>
-  );
-};
+---
 
-const EventsScreen = () => {
-  const [view, setView] = useState2('list');
-  const [creating, setCreating] = useState2(false);
-  useStore();
-  const events = Store.events().slice().sort((a,b)=>(a.d||99)-(b.d||99));
-  return (
-    <>
-      <div className="page-head">
-        <div>
-          <div className="page-greet"><span className="hand">coming up</span></div>
-          <h1 className="page-title">Events</h1>
-        </div>
-        <div style={{display:'flex', gap:8}}>
-          <div className="feed-tabs">
-            <button className={`feed-tab ${view==='list'?'active':''}`} onClick={()=>setView('list')}>List</button>
-            <button className={`feed-tab ${view==='calendar'?'active':''}`} onClick={()=>setView('calendar')}>Calendar</button>
-          </div>
-          <button className="btn btn-primary" onClick={()=>setCreating(true)}><Icon name="plus" size={16}/> New event</button>
-        </div>
-      </div>
+## 🎨 Make it yours
 
-      {events.length === 0 ? (
-        <EmptyState emoji="📅" title="No events yet"
-          sub="Plan a potluck, a CEU session, a trail walk, a talent show — anything that brings the team together. Create the first one."
-          action="Create an event" onAction={()=>setCreating(true)} />
-      ) : view === 'list' ? (
-        <div style={{display:'flex', flexDirection:'column', gap:14}}>
-          {events.map(e => (
-            <div key={e.id} className="event-card">
-              <div className={`event-banner ${e.color}`}>
-                <div className="event-banner-d">{e.d || '·'}</div>
-                <div className="event-banner-m">{e.m}</div>
-              </div>
-              <div className="event-content">
-                <div style={{display:'flex', gap:6, marginBottom:4}}>
-                  <span className="pill" style={{fontSize:11}}>{e.tag}</span>
-                  {e.day && <span className="pill pill-slate" style={{fontSize:11}}>{e.day}</span>}
-                </div>
-                <div className="event-title">{e.title}</div>
-                <div className="event-detail">
-                  <span><Icon name="clock" size={14}/> {e.time}</span>
-                  {e.location && <span><Icon name="location" size={14}/> {e.location}</span>}
-                  <span><Icon name="crew" size={14}/> {Store.goingCount(e.id)} going</span>
-                </div>
-                <div className="event-foot">
-                  <span style={{display:'flex', gap:8, alignItems:'center', fontSize:13}}>
-                    <Avatar person={FIND(e.host)} size="sm" />
-                    <span className="muted">hosted by <strong style={{color:'var(--navy)'}}>{e.host === Store.meId() || e.host === 'me' ? 'you' : (FIND(e.host)||{}).first || 'a teammate'}</strong></span>
-                  </span>
-                  <div style={{display:'flex', gap:6}}>
-                    {(e.host === Store.meId() || e.host === 'me') && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
-                    <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : 'Going'}</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="card card-pad">
-          <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6, fontSize:11, fontWeight:600, color:'var(--ink-soft)', textTransform:'uppercase', letterSpacing:0.08, textAlign:'center', marginBottom:8}}>
-            {'Sun Mon Tue Wed Thu Fri Sat'.split(' ').map(d => <div key={d}>{d}</div>)}
-          </div>
-          <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6}}>
-            {Array.from({length:35}, (_, i) => {
-              const day = i - 2;
-              const has = events.filter(e => e.d === day);
-              const today = new Date().getDate();
-              const isToday = day === today;
-              return (
-                <div key={i} style={{aspectRatio:'1', borderRadius:10, padding:6, background: isToday ? 'var(--teal-tint)' : day > 0 && day <= 31 ? 'var(--paper)' : 'transparent', border: `1px solid ${isToday ? 'var(--teal)' : day > 0 && day <= 31 ? 'var(--line)' : 'transparent'}`, display:'flex', flexDirection:'column', gap:3}}>
-                  <div style={{fontSize:12, fontWeight:600, color: isToday ? 'var(--teal-deep)' : day > 0 && day <= 31 ? 'var(--navy)' : 'transparent'}}>{day > 0 && day <= 31 ? day : ''}</div>
-                  {has.map(e => (
-                    <div key={e.id} style={{fontSize:10, padding:'2px 5px', borderRadius:5, background:`var(--${e.color === 'navy' ? 'navy' : e.color}${e.color === 'navy' ? '' : '-soft'})`, color: e.color === 'navy' ? 'white' : 'var(--navy)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontWeight:600}}>{e.title.split(' ').slice(0,2).join(' ')}</div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {creating && <EventForm onClose={()=>setCreating(false)} />}
-    </>
-  );
-};
+- **Hospital name / branding:** search the files for `MySalma` and `Salma Rehab` and replace.
+- **Your teams/disciplines:** edit the `TEAMS` list in `data.jsx`.
+- **Colors & fonts:** the top of `styles.css` has every brand variable, or use the in-app **Tweaks** panel.
+- **Reset the app:** Settings → Account → *Reset data*.
 
-Object.assign(window, {
-  AuxRail, HomeScreen, ProfileScreen, CrewsScreen, EventsScreen,
-  AuxSpotlight, AuxEvents, AuxCrews, AuxCapsule, AuxPulse,
-});
+---
+
+## 🔌 Going multi-user with Supabase (built in!)
+
+MySalma ships with a **complete Supabase integration** — it just needs your project keys to switch on. Until then it runs in local single-user mode, so the app always works.
+
+**Setup (about 5 minutes):**
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. In Supabase → **SQL Editor**, paste the entire contents of `supabase-schema.sql` and click **Run**. This creates all the tables, security rules, and realtime.
+3. In Supabase → **Project Settings → API**, copy your **Project URL** and **anon public** key.
+4. Open `supabase-config.js` and paste them into the two lines at the top.
+5. In Supabase → **Authentication → Providers → Email**, turn **off** "Confirm email" (so staff can sign in immediately — it's an internal tool).
+6. Commit and push. Done — MySalma is now a **shared, live, multi-user network**:
+   - Each staff member signs up / logs in (real auth)
+   - Everyone sees the same feed, events, crews, and shift swaps
+   - Posts, reactions, comments, and RSVPs update **in real time** across everyone's screens
+   - Profiles (with photos) are shared
+
+**How it's wired:** all data flows through the `Store` object in `store.jsx`. It detects whether `supabase-config.js` is filled in — if yes, it uses Supabase + realtime; if no, it falls back to this-browser localStorage. No other file changes between modes. `auth.jsx` is the sign-in/sign-up screen (only shown in Supabase mode).
+
+> **Security note:** the `anon` key is safe to ship in front-end code — that's what it's for. Real protection comes from the Row Level Security policies in `supabase-schema.sql` (everyone can read; you can only write your own rows). Never put the `service_role` key in front-end code.
+
+---
+
+*Made with 🫶 for the team that helps people walk, speak, breathe, and live again.*

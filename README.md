@@ -1,0 +1,36 @@
+{
+  "name": "Rehab.Wisal",
+  "short_name": "Rehab.Wisal",
+  "description": "The social home for our hospital — share moments, send Bright Spots, celebrate wins, and look out for each other.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#FAF5EC",
+  "theme_color": "#2BA39A",
+  "categories": ["social", "productivity", "health"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    { "src": "icon-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Share a moment",
+      "short_name": "New post",
+      "url": "./?action=compose",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "On Shift",
+      "short_name": "On Shift",
+      "url": "./?screen=shift",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
