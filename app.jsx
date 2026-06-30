@@ -130,6 +130,20 @@ const ACCENT_PALETTES = [
   ['#3A5A9E','#1F3A7A','#DCE5F4','#EEF2F9'], // deep navy
   ['#6783B0','#4A6390','#E4ECF6','#EFF3F9'], // slate blue
   ['#E0894B','#B86833','#FBE5D3','#FCF1E6'], // warm peach
+  ['#8E3B4E','#6E2A3A','#F3DDE3','#FAEEF1'], // burgundy
+  ['#B5566E','#8E3E53','#F7DCE3','#FCEFF2'], // rose
+  ['#9B6A9E','#76497A','#EEDFEF','#F8F1F8'], // plum / mauve
+  ['#7C6BC4','#5B4C9C','#E6E1F6','#F3F1FA'], // lavender
+  ['#5E8C6A','#46694F','#DBEBE0','#EFF6F1'], // sage green
+  ['#C27A52','#9C5C39','#F6E2D4','#FBF1EA'], // terracotta
+  ['#C9A24B','#9E7C2E','#F6EBCB','#FBF6E6'], // mustard / gold
+  ['#4C9CB0','#357586','#D6ECF1','#EEF7F9'], // dusty teal-blue
+  ['#D08398','#AC6076','#F8DEE6','#FCEFF3'], // dusty pink
+  ['#6B8FA8','#4D6E86','#DEEAF1','#EFF5F8'], // powder blue
+  ['#A8584C','#843F35','#F4DAD4','#FBEDEA'], // clay red
+  ['#5F7A6E','#445A50','#DCE8E2','#EFF5F2'], // eucalyptus
+  ['#7E6552','#5E4A3B','#EBE0D6','#F7F1EA'], // mocha / taupe
+  ['#9A6FB0','#74508A','#EBDFF2','#F6F1F9'], // orchid
 ];
 const FONTS = {
   jakarta: { body: "'Plus Jakarta Sans', sans-serif", display: "'Bricolage Grotesque', sans-serif" },
