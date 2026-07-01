@@ -578,15 +578,81 @@ const SettingsScreen = () => {
             <div className="settings-row"><div><h4>Spotlight nomination</h4></div><span>In-app + email</span></div>
           </>)}
 
-          {section === 'appearance' && (<>
-            <h3 style={{fontSize:20, marginBottom:18}}>Appearance</h3>
-            <div style={{padding:14, background:'var(--cream)', borderRadius:12, marginBottom:18, fontSize:13.5}}>
-              ✨ Tip — switch on <strong>Tweaks</strong> from the toolbar to live-edit colors, density, fonts and layout.
+          {section === 'appearance' && (() => {
+            const th = Store.theme();
+            const curAccent = (th.accent && th.accent[0]) || null;
+            const curFont = th.fontPair || 'jakarta';
+            const curDensity = th.density || 'comfortable';
+            const FONT_OPTS = [
+              ['jakarta','Jakarta + Bricolage','warm, modern'],
+              ['inter','Manrope + Fraunces','editorial'],
+              ['dm','DM Sans + DM Serif','clean'],
+              ['classic','Helvetica','classic'],
+            ];
+            const DENS_OPTS = [['compact','Compact'],['comfortable','Comfortable'],['spacious','Spacious']];
+            return (<>
+            <h3 style={{fontSize:20, marginBottom:6}}>Appearance</h3>
+            <p style={{color:'var(--ink-soft)', fontSize:13.5, margin:'0 0 20px'}}>Personalize how Rehab.Wisal looks for you. Your choices are saved on this device.</p>
+
+            <h4 style={{fontSize:14.5, marginBottom:4}}>Color theme</h4>
+            <p style={{color:'var(--ink-soft)', fontSize:12.5, margin:'0 0 12px'}}>Tap a palette to recolor the whole app.</p>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(112px, 1fr))', gap:10, marginBottom:8}}>
+              {(window.THEMES || []).map(tm => {
+                const on = curAccent === tm.colors[0];
+                return (
+                  <button key={tm.id} onClick={() => Store.setTheme({ accent: tm.colors })} style={{
+                    display:'flex', flexDirection:'column', gap:8, padding:10, cursor:'pointer',
+                    borderRadius:14, background:'var(--paper)',
+                    border:`2px solid ${on ? tm.colors[0] : 'var(--line)'}`,
+                    boxShadow: on ? '0 4px 14px '+tm.colors[3] : 'none', transition:'all .15s',
+                  }}>
+                    <div style={{display:'flex', gap:4, alignItems:'center'}}>
+                      <span style={{width:26, height:26, borderRadius:8, background:tm.colors[0]}}></span>
+                      <span style={{width:16, height:26, borderRadius:6, background:tm.colors[1]}}></span>
+                      <span style={{width:12, height:26, borderRadius:6, background:tm.colors[2]}}></span>
+                      {on && <span style={{marginLeft:'auto', color:tm.colors[0], fontWeight:700}}>✓</span>}
+                    </div>
+                    <span style={{fontSize:12.5, fontWeight:600, color:'var(--navy)', textAlign:'left'}}>{tm.name}</span>
+                  </button>
+                );
+              })}
             </div>
-            <div className="settings-row"><div><h4>Theme</h4></div><span className="pill pill-teal">Warm cream</span></div>
-            <div className="settings-row"><div><h4>Density</h4></div><span>Comfortable</span></div>
-            <div className="settings-row"><div><h4>Reduce motion</h4></div><span>Off</span></div>
-          </>)}
+            {curAccent && <button className="btn btn-sm btn-ghost" style={{marginBottom:8}} onClick={() => Store.resetTheme()}>Reset to default</button>}
+
+            <div className="divider" style={{margin:'20px 0'}}></div>
+
+            <h4 style={{fontSize:14.5, marginBottom:10}}>Font style</h4>
+            <div style={{display:'flex', flexDirection:'column', gap:8, marginBottom:8}}>
+              {FONT_OPTS.map(([id,label,desc]) => {
+                const on = curFont === id;
+                return (
+                  <button key={id} onClick={() => Store.setTheme({ fontPair: id })} style={{
+                    display:'flex', alignItems:'center', gap:12, padding:'12px 14px', cursor:'pointer', textAlign:'left',
+                    borderRadius:12, background: on ? 'var(--teal-tint)' : 'var(--paper)',
+                    border:`1.5px solid ${on ? 'var(--teal)' : 'var(--line)'}`,
+                  }}>
+                    <span style={{fontFamily: (window.FONTS && window.FONTS[id] ? window.FONTS[id].display : 'inherit'), fontSize:19, fontWeight:700, color:'var(--navy)', minWidth:34}}>Aa</span>
+                    <span style={{flex:1}}><div style={{fontWeight:600, fontSize:14}}>{label}</div><div style={{fontSize:12, color:'var(--ink-soft)'}}>{desc}</div></span>
+                    {on && <span style={{color:'var(--teal-deep)', fontWeight:700}}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="divider" style={{margin:'20px 0'}}></div>
+
+            <h4 style={{fontSize:14.5, marginBottom:10}}>Density</h4>
+            <div style={{display:'flex', gap:8}}>
+              {DENS_OPTS.map(([id,label]) => {
+                const on = curDensity === id;
+                return (
+                  <button key={id} onClick={() => Store.setTheme({ density: id })} className={`pill ${on ? 'pill-teal' : ''}`}
+                    style={{cursor:'pointer', padding:'8px 16px', border:`1.5px solid ${on ? 'var(--teal)' : 'var(--line)'}`}}>{label}</button>
+                );
+              })}
+            </div>
+            </>);
+          })()}
         </div>
       </div>
     </>

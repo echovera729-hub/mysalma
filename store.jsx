@@ -66,7 +66,7 @@ function persistLocal() {
     if (String(e).match(/quota/i)) alert("MySalma's local storage is full — try removing a post with large photos.");
   }
 }
-function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY)) || { saved: {} }; } catch (e) { return { saved: {} }; } }
+function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY)) || { saved: {}, theme: {} }; } catch (e) { return { saved: {}, theme: {} }; } }
 function persistPrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(_prefs)); } catch (e) {} }
 
 function _emit() { _listeners.forEach(fn => fn()); }
@@ -274,6 +274,11 @@ const Store = {
   // ---------- saved (device-local in both modes) ----------
   isSaved(id) { return !!(_prefs.saved || {})[id]; },
   toggleSave(id) { _prefs.saved = { ...(_prefs.saved || {}), [id]: !(_prefs.saved || {})[id] }; persistPrefs(); _emit(); },
+
+  // ---------- appearance theme (device-local, works on the live site) ----------
+  theme() { return _prefs.theme || {}; },
+  setTheme(patch) { _prefs.theme = { ...(_prefs.theme || {}), ...patch }; persistPrefs(); _emit(); },
+  resetTheme() { _prefs.theme = {}; persistPrefs(); _emit(); },
 
   // ---------- mood + daily ----------
   moodToday() { const r = (_state.moods || []).find(m => m.user_id === _meId && m.day === dayKey()); return r ? r.mood : null; },
