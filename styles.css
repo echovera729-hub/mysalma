@@ -1183,8 +1183,9 @@ a { color: inherit; }
   padding: 14px 16px;
   display: flex; align-items: center; gap: 14px;
   opacity: 0; transition: transform .35s cubic-bezier(.2,.7,.3,1), opacity .35s;
+  pointer-events: none;
 }
-.pwa-install.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.pwa-install.show { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
 .pwa-install-icon {
   width: 46px; height: 46px; border-radius: 13px; flex-shrink: 0;
   background: linear-gradient(135deg, var(--teal), var(--teal-deep));
