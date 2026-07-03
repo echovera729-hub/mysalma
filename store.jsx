@@ -315,6 +315,8 @@ const Store = {
     return id;
   },
   deleteEvent(id) {
+    const ev = (_state.events || []).find(e => e.id === id);
+    if (ev && ev.host !== _meId && !this.isAdmin()) return;
     mutate(() => { cacheRemove('events', e => e.id === id); cacheRemove('event_rsvps', r => r.event_id === id); },
       () => sb.from('events').delete().eq('id', id));
   },
@@ -436,6 +438,13 @@ const Store = {
     mutate(() => cacheRemove('group_members', m => m.group_id === id && m.user_id === userId), () => sb.from('group_members').delete().match({ group_id: id, user_id: userId }));
   },
   leaveGroup(id) { this.removeGroupMember(id, _meId); },
+  deleteGroup(id) {
+    if (!this.isGroupOwner(id)) return;
+    mutate(
+      () => { cacheRemove('groups', g => g.id === id); cacheRemove('group_members', m => m.group_id === id); },
+      () => sb.from('groups').delete().eq('id', id),
+    );
+  },
 
   // ---------- teammates (approved members only) ----------
   teammates() {

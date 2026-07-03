@@ -344,7 +344,10 @@ const GroupSettingsModal = ({ group, onClose }) => {
           </div>
         </>)}
         <div style={{display:'flex', justifyContent:'space-between', marginTop:20}}>
-          <button className="btn btn-sm" style={{color:'#B05050'}} onClick={()=>{ Store.leaveGroup(group.id); onClose(); }}>Leave group</button>
+          <div style={{display:'flex', gap:8}}>
+            <button className="btn btn-sm" style={{color:'#B05050'}} onClick={()=>{ Store.leaveGroup(group.id); onClose(); }}>Leave group</button>
+            {owner && <button className="btn btn-sm" style={{color:'#B05050'}} onClick={()=>{ if (confirm('Delete this group chat for everyone? This can\'t be undone.')) { Store.deleteGroup(group.id); onClose(); } }}>Delete group</button>}
+          </div>
           <button className="btn" onClick={onClose}>Close</button>
         </div>
       </div>

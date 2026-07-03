@@ -63,7 +63,7 @@ const CrewEvents = ({ crewId }) => {
                     <span className="muted">hosted by <strong style={{color:'var(--navy)'}}>{e.host === Store.meId() ? 'you' : (FIND(e.host)||{}).first || 'a teammate'}</strong></span>
                   </span>
                   <div style={{display:'flex', gap:6}}>
-                    {e.host === Store.meId() && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
+                    {(e.host === Store.meId() || Store.isAdmin()) && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
                     <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : 'Going'}</button>
                   </div>
                 </div>
