@@ -692,23 +692,31 @@ const EventsScreen = () => {
             {'Sun Mon Tue Wed Thu Fri Sat'.split(' ').map(d => <div key={d}>{d}</div>)}
           </div>
           <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6}}>
-            {Array.from({length:35}, (_, i) => {
-              const day = i - 2;
-              const has = events.filter(e => e.d === day);
-              const today = new Date().getDate();
-              const isToday = day === today;
-              return (
-                <div key={i} style={{aspectRatio:'1', borderRadius:10, padding:6, background: isToday ? 'var(--teal-tint)' : day > 0 && day <= 31 ? 'var(--paper)' : 'transparent', border: `1px solid ${isToday ? 'var(--teal)' : day > 0 && day <= 31 ? 'var(--line)' : 'transparent'}`, display:'flex', flexDirection:'column', gap:3}}>
-                  <div style={{fontSize:12, fontWeight:600, color: isToday ? 'var(--teal-deep)' : day > 0 && day <= 31 ? 'var(--navy)' : 'transparent'}}>{day > 0 && day <= 31 ? day : ''}</div>
-                  {has.map(e => (
-                    <div key={e.id} style={{fontSize:10, padding:'2px 5px', borderRadius:5, display:'flex', alignItems:'center', gap:4, background:`var(--${e.color === 'navy' ? 'navy' : e.color}${e.color === 'navy' ? '' : '-soft'})`, color: e.color === 'navy' ? 'white' : 'var(--navy)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontWeight:600}}>
-                      {e.image && <span style={{width:12, height:12, borderRadius:3, flexShrink:0, backgroundImage:`url(${e.image})`, backgroundSize:'cover', backgroundPosition:'center'}} />}
-                      <span style={{overflow:'hidden', textOverflow:'ellipsis'}}>{e.title.split(' ').slice(0,2).join(' ')}</span>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+            {(() => {
+              const now = new Date();
+              const year = now.getFullYear(), month = now.getMonth();
+              const firstWeekday = new Date(year, month, 1).getDay();
+              const daysInMonth = new Date(year, month + 1, 0).getDate();
+              const today = now.getDate();
+              const rows = Math.ceil((firstWeekday + daysInMonth) / 7);
+              return Array.from({length: rows * 7}, (_, i) => {
+                const day = i - firstWeekday + 1;
+                const inMonth = day >= 1 && day <= daysInMonth;
+                const has = inMonth ? events.filter(e => e.d === day) : [];
+                const isToday = inMonth && day === today;
+                return (
+                  <div key={i} style={{aspectRatio:'1', borderRadius:10, padding:6, background: isToday ? 'var(--teal-tint)' : inMonth ? 'var(--paper)' : 'transparent', border: `1px solid ${isToday ? 'var(--teal)' : inMonth ? 'var(--line)' : 'transparent'}`, display:'flex', flexDirection:'column', gap:3, overflow:'hidden'}}>
+                    <div style={{fontSize:12, fontWeight:600, color: isToday ? 'var(--teal-deep)' : inMonth ? 'var(--navy)' : 'transparent'}}>{inMonth ? day : ''}</div>
+                    {has.map(e => (
+                      <div key={e.id} style={{fontSize:10, padding: e.image ? '2px' : '2px 5px', borderRadius:6, display:'flex', alignItems:'center', gap:5, background:`var(--${e.color === 'navy' ? 'navy' : e.color}${e.color === 'navy' ? '' : '-soft'})`, color: e.color === 'navy' ? 'white' : 'var(--navy)', overflow:'hidden', fontWeight:600}}>
+                        {e.image && <span style={{width:22, height:22, borderRadius:5, flexShrink:0, backgroundImage:`url(${e.image})`, backgroundSize:'cover', backgroundPosition:'center'}} />}
+                        <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{e.title.split(' ').slice(0,2).join(' ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       )}
