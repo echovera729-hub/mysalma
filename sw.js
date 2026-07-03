@@ -6,7 +6,7 @@
      • Supabase API / realtime                           → never cached (always live)
 */
 
-const CACHE = 'rehabwisal-v5';  // ⬆️ BUMP THIS on every code change, or installed apps keep running old cached JS.
+const CACHE = 'rehabwisal-v6';  // ⬆️ BUMP THIS on every code change, or installed apps keep running old cached JS.
 
 // Same-origin files that make up the app shell (relative to this SW's scope).
 const PRECACHE = [
@@ -23,6 +23,7 @@ const PRECACHE = [
   './engage.jsx',
   './screens.jsx',
   './screens2.jsx',
+  './crew-detail.jsx',
   './auth.jsx',
   './admin.jsx',
   './app.jsx',

@@ -429,9 +429,14 @@ const CrewsScreen = () => {
   const [creating, setCreating] = useState2(false);
   const [emoji, setEmoji] = useState2('🌟');
   const [cname, setCname] = useState2('');
+  const [cdesc, setCdesc] = useState2('');
+  const [openCrewId, setOpenCrewId] = useState2(null);
   const mine = Store.crews();
   const ideas = CREW_IDEAS.filter(i => !Store.hasCrew(i.name));
-  const create = () => { if (cname.trim()) { Store.addCrew({ emoji, name: cname.trim() }); setCname(''); setEmoji('🌟'); setCreating(false); } };
+  const create = () => { if (cname.trim()) { const id = Store.addCrew({ emoji, name: cname.trim(), description: cdesc.trim() }); setCname(''); setCdesc(''); setEmoji('🌟'); setCreating(false); } };
+
+  if (openCrewId) return <CrewDetailScreen crewId={openCrewId} onBack={() => setOpenCrewId(null)} />;
+
   return (
     <>
       <div className="page-head">
@@ -460,6 +465,10 @@ const CrewsScreen = () => {
             <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Crew name</label>
             <input className="input" value={cname} onChange={e=>setCname(e.target.value)} placeholder="e.g. Night Owls" onKeyDown={e=>{if(e.key==='Enter')create();}} />
           </div>
+          <div style={{flex:'1 1 100%', minWidth:200}}>
+            <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Description (optional)</label>
+            <input className="input" value={cdesc} onChange={e=>setCdesc(e.target.value)} placeholder="What's this crew about?" onKeyDown={e=>{if(e.key==='Enter')create();}} />
+          </div>
           <button className="btn btn-primary" onClick={create} disabled={!cname.trim()} style={!cname.trim()?{opacity:.5}:{}}>Create</button>
         </div>
       )}
@@ -468,13 +477,13 @@ const CrewsScreen = () => {
         <div className="section-head"><h3>Your crews</h3><span className="meta">{mine.length} joined</span></div>
         <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px,1fr))', gap:12, marginBottom:8}}>
           {mine.map(c => (
-            <div key={c.id} className="card card-pad" style={{display:'flex', gap:12, alignItems:'center'}}>
-              <div className="crew-icon" style={{width:48, height:48, fontSize:22}}>{c.emoji}</div>
+            <div key={c.id} className="card card-pad" style={{display:'flex', gap:12, alignItems:'center', cursor:'pointer'}} onClick={()=>setOpenCrewId(c.id)}>
+              <div className="crew-icon" style={{width:48, height:48, fontSize:22, backgroundImage: c.photo?`url(${c.photo})`:undefined, backgroundSize:'cover', backgroundPosition:'center'}}>{!c.photo && c.emoji}</div>
               <div style={{flex:1, minWidth:0}}>
                 <div style={{fontWeight:600, color:'var(--navy)'}}>{c.name}</div>
                 <div style={{fontSize:12, color:'var(--ink-soft)'}}>You're a member</div>
               </div>
-              <button className="btn btn-sm btn-ghost" onClick={()=>Store.leaveCrew(c.id)}>Leave</button>
+              <button className="btn btn-sm btn-ghost" onClick={(e)=>{e.stopPropagation(); Store.leaveCrew(c.id);}}>Leave</button>
             </div>
           ))}
         </div>
@@ -514,19 +523,29 @@ const CrewsScreen = () => {
 // ============================================================
 //  EVENTS — create & RSVP
 // ============================================================
-const EventForm = ({ onClose }) => {
+const EventForm = ({ onClose, crewId }) => {
   const [title, setTitle] = useState2('');
   const [date, setDate] = useState2('');
   const [time, setTime] = useState2('');
   const [where, setWhere] = useState2('');
+  const [desc, setDesc] = useState2('');
+  const [image, setImage] = useState2(null);
+  const [uploading, setUploading] = useState2(false);
   const [tag, setTag] = useState2('Social');
   const [color, setColor] = useState2('peach');
+  const fileRef = React.useRef(null);
   const lbl = { display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'14px 0 6px' };
+  const pickImage = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try { setImage(await readScaledImage(file, 1200)); } catch (e) {}
+    setUploading(false);
+  };
   const submit = () => {
     if (!title.trim()) return;
     let d = '', m = 'MAY', day = '';
     if (date) { const dt = new Date(date + 'T00:00'); d = dt.getDate(); m = dt.toLocaleDateString([], {month:'short'}).toUpperCase(); day = dt.toLocaleDateString([], {weekday:'long'}); }
-    Store.addEvent({ title: title.trim(), d, m, day, time: time || 'TBD', where: where.trim(), tag, color });
+    Store.addEvent({ title: title.trim(), d, m, day, time: time || 'TBD', where: where.trim(), tag, color, description: desc.trim(), image, crewId });
     onClose();
   };
   return (
@@ -536,8 +555,22 @@ const EventForm = ({ onClose }) => {
           <h2 style={{fontSize:22}}>New event</h2>
           <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
         </div>
+        <label style={lbl}>Event image (optional)</label>
+        <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>pickImage(e.target.files[0])} />
+        {image ? (
+          <div style={{position:'relative', borderRadius:14, overflow:'hidden', border:'1px solid var(--line)'}}>
+            <div style={{aspectRatio:'16/8', backgroundImage:`url(${image})`, backgroundSize:'cover', backgroundPosition:'center'}} />
+            <button className="btn btn-sm" style={{position:'absolute', top:8, right:8, background:'rgba(255,255,255,.9)'}} onClick={()=>setImage(null)}>Remove</button>
+          </div>
+        ) : (
+          <div className="btn" style={{width:'100%', justifyContent:'center', cursor:'pointer', borderStyle:'dashed'}} onClick={()=>fileRef.current && fileRef.current.click()}>
+            <Icon name="image" size={16}/> {uploading ? 'Uploading…' : 'Add a photo to feature this event'}
+          </div>
+        )}
         <label style={lbl}>Title *</label>
         <input className="input" value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Potluck Friday — Comfort Food" />
+        <label style={lbl}>Description (optional)</label>
+        <textarea className="input" value={desc} onChange={e=>setDesc(e.target.value)} placeholder="A short line about what to expect" rows={2} style={{resize:'vertical', fontFamily:'inherit'}} />
         <div style={{display:'flex', gap:12}}>
           <div style={{flex:1}}><label style={lbl}>Date</label><input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
           <div style={{flex:1}}><label style={lbl}>Time</label><input className="input" value={time} onChange={e=>setTime(e.target.value)} placeholder="12:30 PM" /></div>
@@ -555,6 +588,32 @@ const EventForm = ({ onClose }) => {
           <button className="btn btn-primary" disabled={!title.trim()} style={!title.trim()?{opacity:.5}:{}} onClick={submit}>Create event</button>
         </div>
       </div>
+    </div>
+  );
+};
+
+const CalendarBanner = () => {
+  useStore();
+  const cover = Store.calendarCover();
+  const fileRef = React.useRef(null);
+  const pick = async (file) => {
+    if (!file) return;
+    try { Store.setCalendarCover(await readScaledImage(file, 1600)); } catch (e) {}
+  };
+  return (
+    <div className="calendar-banner" style={cover ? {backgroundImage:`url(${cover})`} : {}}>
+      <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={e=>pick(e.target.files[0])} />
+      {!cover && (
+        <div className="calendar-banner-empty" onClick={()=>fileRef.current && fileRef.current.click()}>
+          <Icon name="image" size={18}/> Add a cover photo for the calendar
+        </div>
+      )}
+      {cover && (
+        <div className="calendar-banner-actions">
+          <button className="btn btn-sm" onClick={()=>fileRef.current && fileRef.current.click()}>Change</button>
+          <button className="btn btn-sm" onClick={()=>Store.clearCalendarCover()}>Remove</button>
+        </div>
+      )}
     </div>
   );
 };
@@ -580,6 +639,8 @@ const EventsScreen = () => {
         </div>
       </div>
 
+      {view === 'calendar' && events.length > 0 && <CalendarBanner />}
+
       {events.length === 0 ? (
         <EmptyState emoji="📅" title="No events yet"
           sub="Plan a potluck, a CEU session, a trail walk, a talent show — anything that brings the team together. Create the first one."
@@ -588,16 +649,24 @@ const EventsScreen = () => {
         <div style={{display:'flex', flexDirection:'column', gap:14}}>
           {events.map(e => (
             <div key={e.id} className="event-card">
-              <div className={`event-banner ${e.color}`}>
-                <div className="event-banner-d">{e.d || '·'}</div>
-                <div className="event-banner-m">{e.m}</div>
-              </div>
+              {e.image ? (
+                <div className="event-banner event-banner-img" style={{backgroundImage:`url(${e.image})`}}>
+                  <div className="event-banner-d">{e.d || '·'}</div>
+                  <div className="event-banner-m">{e.m}</div>
+                </div>
+              ) : (
+                <div className={`event-banner ${e.color}`}>
+                  <div className="event-banner-d">{e.d || '·'}</div>
+                  <div className="event-banner-m">{e.m}</div>
+                </div>
+              )}
               <div className="event-content">
                 <div style={{display:'flex', gap:6, marginBottom:4}}>
                   <span className="pill" style={{fontSize:11}}>{e.tag}</span>
                   {e.day && <span className="pill pill-slate" style={{fontSize:11}}>{e.day}</span>}
                 </div>
                 <div className="event-title">{e.title}</div>
+                {e.description && <div className="event-desc">{e.description}</div>}
                 <div className="event-detail">
                   <span><Icon name="clock" size={14}/> {e.time}</span>
                   {e.location && <span><Icon name="location" size={14}/> {e.location}</span>}
@@ -632,7 +701,10 @@ const EventsScreen = () => {
                 <div key={i} style={{aspectRatio:'1', borderRadius:10, padding:6, background: isToday ? 'var(--teal-tint)' : day > 0 && day <= 31 ? 'var(--paper)' : 'transparent', border: `1px solid ${isToday ? 'var(--teal)' : day > 0 && day <= 31 ? 'var(--line)' : 'transparent'}`, display:'flex', flexDirection:'column', gap:3}}>
                   <div style={{fontSize:12, fontWeight:600, color: isToday ? 'var(--teal-deep)' : day > 0 && day <= 31 ? 'var(--navy)' : 'transparent'}}>{day > 0 && day <= 31 ? day : ''}</div>
                   {has.map(e => (
-                    <div key={e.id} style={{fontSize:10, padding:'2px 5px', borderRadius:5, background:`var(--${e.color === 'navy' ? 'navy' : e.color}${e.color === 'navy' ? '' : '-soft'})`, color: e.color === 'navy' ? 'white' : 'var(--navy)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontWeight:600}}>{e.title.split(' ').slice(0,2).join(' ')}</div>
+                    <div key={e.id} style={{fontSize:10, padding:'2px 5px', borderRadius:5, display:'flex', alignItems:'center', gap:4, background:`var(--${e.color === 'navy' ? 'navy' : e.color}${e.color === 'navy' ? '' : '-soft'})`, color: e.color === 'navy' ? 'white' : 'var(--navy)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontWeight:600}}>
+                      {e.image && <span style={{width:12, height:12, borderRadius:3, flexShrink:0, backgroundImage:`url(${e.image})`, backgroundSize:'cover', backgroundPosition:'center'}} />}
+                      <span style={{overflow:'hidden', textOverflow:'ellipsis'}}>{e.title.split(' ').slice(0,2).join(' ')}</span>
+                    </div>
                   ))}
                 </div>
               );

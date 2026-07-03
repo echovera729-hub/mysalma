@@ -236,11 +236,106 @@ const NotifsScreen = () => (
 // ============================================================
 //  CHAT screen
 // ============================================================
+const NewGroupModal = ({ onClose, onCreated }) => {
+  const [name, setName] = useS3('');
+  const [picked, setPicked] = useS3([]);
+  const mates = Store.teammates();
+  const toggle = (id) => setPicked(p => p.includes(id) ? p.filter(x=>x!==id) : [...p, id]);
+  const create = () => { if (!name.trim()) return; const id = Store.createGroup(name.trim(), picked); onClose(); if (id) onCreated(id); };
+  return (
+    <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
+      <div className="modal-sheet" style={{width:'min(420px,100%)', maxHeight:'86vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:26, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14}}>
+          <h2 style={{fontSize:20}}>New group chat</h2>
+          <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
+        </div>
+        <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Group name</label>
+        <input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Night Shift Crew" autoFocus />
+        <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'16px 0 8px'}}>Add teammates</label>
+        {mates.length === 0 ? (
+          <div style={{fontSize:13, color:'var(--ink-soft)'}}>No teammates yet — invite people to join first.</div>
+        ) : (
+          <div style={{display:'flex', flexDirection:'column', gap:2, maxHeight:260, overflow:'auto'}}>
+            {mates.map(m => (
+              <div key={m.id} className="chat-list-item" style={{cursor:'pointer'}} onClick={()=>toggle(m.id)}>
+                <Avatar person={m} size="sm" />
+                <div className="chat-list-info">
+                  <div className="chat-list-name">{m.name}</div>
+                </div>
+                <input type="checkbox" readOnly checked={picked.includes(m.id)} />
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:20}}>
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={!name.trim()} style={!name.trim()?{opacity:.5}:{}} onClick={create}>Create group</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GroupSettingsModal = ({ group, onClose }) => {
+  useStore();
+  const [name, setName] = useS3(group.name);
+  const owner = Store.isGroupOwner(group.id);
+  const members = Store.groupMembers(group.id);
+  const mates = Store.teammates().filter(m => !members.some(x=>x.id===m.id));
+  return (
+    <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
+      <div className="modal-sheet" style={{width:'min(440px,100%)', maxHeight:'86vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:26, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14}}>
+          <h2 style={{fontSize:20}}>Group settings</h2>
+          <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
+        </div>
+        {owner ? (
+          <>
+            <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Group name</label>
+            <div style={{display:'flex', gap:8}}>
+              <input className="input" value={name} onChange={e=>setName(e.target.value)} />
+              <button className="btn btn-sm" onClick={()=>Store.renameGroup(group.id, name)}>Save</button>
+            </div>
+          </>
+        ) : <div style={{fontWeight:600, color:'var(--navy)'}}>{group.name}</div>}
+        <div style={{fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'18px 0 8px'}}>Members ({members.length})</div>
+        <div style={{display:'flex', flexDirection:'column', gap:2}}>
+          {members.map(m => (
+            <div key={m.id} className="chat-list-item" style={{cursor:'default'}}>
+              <Avatar person={m} size="sm" />
+              <div className="chat-list-info"><div className="chat-list-name">{m.name}{m.id===Store.meId()?' (you)':''}</div></div>
+              {owner && m.id !== Store.meId() && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.removeGroupMember(group.id, m.id)}>Remove</button>}
+            </div>
+          ))}
+        </div>
+        {owner && mates.length > 0 && (<>
+          <div style={{fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'18px 0 8px'}}>Add more</div>
+          <div style={{display:'flex', flexDirection:'column', gap:2, maxHeight:180, overflow:'auto'}}>
+            {mates.map(m => (
+              <div key={m.id} className="chat-list-item" style={{cursor:'pointer'}} onClick={()=>Store.addGroupMember(group.id, m.id)}>
+                <Avatar person={m} size="sm" />
+                <div className="chat-list-info"><div className="chat-list-name">{m.name}</div></div>
+                <Icon name="plus" size={14}/>
+              </div>
+            ))}
+          </div>
+        </>)}
+        <div style={{display:'flex', justifyContent:'space-between', marginTop:20}}>
+          <button className="btn btn-sm" style={{color:'#B05050'}} onClick={()=>{ Store.leaveGroup(group.id); onClose(); }}>Leave group</button>
+          <button className="btn" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ChatScreen = () => {
   useStore();
   const convos = Store.conversations();
   const [active, setActive] = useS3('team');
   const [draft, setDraft] = useS3('');
+  const [showNewGroup, setShowNewGroup] = useS3(false);
+  const [showGroupSettings, setShowGroupSettings] = useS3(false);
   const bodyRef = React.useRef(null);
   const activeConv = convos.find(c => c.id === active) || convos[0];
   const msgs = Store.messagesWith(active);
@@ -266,23 +361,29 @@ const ChatScreen = () => {
       </div>
       <div className="chat-layout">
         <div className="chat-list">
-          <div className="search-bar" style={{marginBottom:12, padding:'8px 14px'}}>
-            <Icon name="search" size={16}/>
-            <input placeholder="Search people…" />
+          <div style={{display:'flex', gap:8, marginBottom:12}}>
+            <div className="search-bar" style={{flex:1, padding:'8px 14px'}}>
+              <Icon name="search" size={16}/>
+              <input placeholder="Search people…" />
+            </div>
+            <button className="btn btn-icon" title="New group chat" onClick={()=>setShowNewGroup(true)}><Icon name="plus" size={16}/></button>
           </div>
           {convos.map(c => {
             const on = c.id === active;
+            const isTeam = c.id === 'team';
             return (
               <div key={c.id} className={`chat-list-item ${on ? 'active' : ''}`} onClick={() => setActive(c.id)}>
-                {c.isRoom
+                {isTeam
                   ? <div style={{width:40, height:40, borderRadius:12, background:'var(--teal-tint)', display:'grid', placeItems:'center', fontSize:20, flexShrink:0}}>🏥</div>
+                  : c.isGroup
+                  ? <div style={{width:40, height:40, borderRadius:12, background: c.photo?`url(${c.photo}) center/cover`:'var(--lavender-soft)', display:'grid', placeItems:'center', fontSize:18, flexShrink:0}}>{!c.photo && '👥'}</div>
                   : <Avatar person={c} size="md" />}
                 <div className="chat-list-info">
                   <div className="chat-list-name">
-                    <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{c.isRoom ? 'Whole Hospital' : c.name}</span>
+                    <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{isTeam ? 'Whole Hospital' : c.name}</span>
                     {c.lastAt && <span className="chat-list-time">{timeAgo(c.lastAt)}</span>}
                   </div>
-                  <div className="chat-list-msg">{c.last || (c.isRoom ? 'Team-wide room — say hi 👋' : 'No messages yet')}</div>
+                  <div className="chat-list-msg">{c.last || (isTeam ? 'Team-wide room — say hi 👋' : c.isGroup ? `${c.memberCount} member${c.memberCount!==1?'s':''}` : 'No messages yet')}</div>
                 </div>
               </div>
             );
@@ -296,20 +397,25 @@ const ChatScreen = () => {
 
         <div className="chat-thread">
           <div className="chat-head">
-            {activeConv && activeConv.isRoom
+            {activeConv && activeConv.id === 'team'
               ? <div style={{width:40, height:40, borderRadius:12, background:'var(--teal-tint)', display:'grid', placeItems:'center', fontSize:20}}>🏥</div>
+              : activeConv && activeConv.isGroup
+              ? <div style={{width:40, height:40, borderRadius:12, background: activeConv.photo?`url(${activeConv.photo}) center/cover`:'var(--lavender-soft)', display:'grid', placeItems:'center', fontSize:18}}>{!activeConv.photo && '👥'}</div>
               : <Avatar person={activeConv} size="md" />}
             <div style={{flex:1, minWidth:0}}>
-              <div style={{fontWeight:600, color:'var(--navy)'}}>{activeConv ? (activeConv.isRoom ? 'Whole Hospital' : activeConv.name) : 'Chat'}</div>
-              <div style={{fontSize:12, color:'var(--ink-soft)'}}>{activeConv && activeConv.isRoom ? 'Everyone on Rehab.Wisal' : (activeConv ? (activeConv.role || (TEAMS[activeConv.team]||{}).label) : '')}</div>
+              <div style={{fontWeight:600, color:'var(--navy)'}}>{activeConv ? (activeConv.id === 'team' ? 'Whole Hospital' : activeConv.name) : 'Chat'}</div>
+              <div style={{fontSize:12, color:'var(--ink-soft)'}}>{activeConv && activeConv.id === 'team' ? 'Everyone on Rehab.Wisal' : activeConv && activeConv.isGroup ? `${activeConv.memberCount} member${activeConv.memberCount!==1?'s':''} · group chat` : (activeConv ? (activeConv.role || (TEAMS[activeConv.team]||{}).label) : '')}</div>
             </div>
+            {activeConv && activeConv.isGroup && (
+              <button className="btn btn-icon btn-ghost" title="Group settings" onClick={()=>setShowGroupSettings(true)}><Icon name="settings" size={16}/></button>
+            )}
           </div>
 
           <div className="chat-body" ref={bodyRef}>
             {msgs.length === 0 ? (
               <div style={{margin:'auto', textAlign:'center', color:'var(--ink-soft)', maxWidth:280}}>
-                <div style={{fontSize:38}}>{activeConv && activeConv.isRoom ? '🏥' : '👋'}</div>
-                <div style={{marginTop:8, fontSize:14}}>{activeConv && activeConv.isRoom ? 'Start the conversation with your whole team.' : `Say hello to ${activeConv ? activeConv.first : ''}.`}</div>
+                <div style={{fontSize:38}}>{activeConv && activeConv.isRoom ? (activeConv.isGroup ? '👥' : '🏥') : '👋'}</div>
+                <div style={{marginTop:8, fontSize:14}}>{activeConv && activeConv.isRoom ? `Start the conversation with ${activeConv.isGroup ? 'this group' : 'your whole team'}.` : `Say hello to ${activeConv ? activeConv.first : ''}.`}</div>
               </div>
             ) : msgs.map((m, i) => {
               const mine = m.sender === Store.meId();
@@ -332,13 +438,15 @@ const ChatScreen = () => {
           </div>
 
           <div className="chat-input">
-            <input className="input" placeholder={`Message ${activeConv ? (activeConv.isRoom ? 'the team' : activeConv.first) : ''}…`}
+            <input className="input" placeholder={`Message ${activeConv ? (activeConv.id === 'team' ? 'the team' : activeConv.isGroup ? 'the group' : activeConv.first) : ''}…`}
               value={draft} onChange={e=>setDraft(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') send(); }} />
             <button className="btn btn-primary btn-icon" onClick={send}><Icon name="send" size={16}/></button>
           </div>
         </div>
       </div>
+      {showNewGroup && <NewGroupModal onClose={()=>setShowNewGroup(false)} onCreated={(id)=>setActive(id)} />}
+      {showGroupSettings && activeConv && activeConv.isGroup && <GroupSettingsModal group={activeConv} onClose={()=>setShowGroupSettings(false)} />}
     </>
   );
 };

@@ -40,8 +40,10 @@ function blankState() {
     comments: [],          // [{id,post_id,user_id,text,created_at}]
     events: [],            // [{id,host,title,d,m,day,time,location,tag,color,created_at}]
     event_rsvps: [],       // [{event_id,user_id}]
-    crews: [],             // [{id,emoji,name,created_by}]
+    crews: [],             // [{id,emoji,name,description,photo,created_by}]
     crew_members: [],      // [{crew_id,user_id}]
+    groups: [],            // [{id,name,photo,created_by,created_at}]  -- chat group
+    group_members: [],     // [{group_id,user_id}]
     swaps: [],             // [{id,by,need,offer,note,urgency,team,created_at}]
     swap_covers: [],       // [{swap_id,user_id}]
     moods: [],             // [{user_id,day,mood}]
@@ -126,7 +128,7 @@ function readScaledImage(file, max = 1280, quality = 0.82) {
 // ════════════════════════════════════════════════════════════════
 //  Supabase plumbing
 // ════════════════════════════════════════════════════════════════
-const TABLES = ['profiles','posts','reactions','comments','events','event_rsvps','crews','crew_members','swaps','swap_covers','moods','dailies','messages','nominations'];
+const TABLES = ['profiles','posts','reactions','comments','events','event_rsvps','crews','crew_members','groups','group_members','swaps','swap_covers','moods','dailies','messages','nominations'];
 
 async function loadAll() {
   const results = await Promise.all(TABLES.map(t => sb.from(t).select('*')));
@@ -228,12 +230,14 @@ const Store = {
     return (_state.posts || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   },
   myPosts() { return this.allPosts().filter(p => p.author === _meId); },
+  crewPosts(crewId) { return this.allPosts().filter(p => p.crew_id === crewId); },
   addPost(post) {
     const id = newId('u');
     const row = {
       id, author: _meId, body: post.body || '', media: post.media || [],
       featured: post.featured || null, kudos_names: post.kudosNames || [],
       kudos_tag: post.kudosTag || null, capsule: post.capsule || null,
+      crew_id: post.crewId || null,
       created_at: new Date().toISOString(),
     };
     mutate(() => cacheInsert('posts', row), () => sb.from('posts').insert(row));
@@ -302,9 +306,10 @@ const Store = {
 
   // ---------- events ----------
   events() { return (_state.events || []).slice(); },
+  crewEvents(crewId) { return this.events().filter(e => e.crew_id === crewId); },
   addEvent(ev) {
     const id = newId('ev');
-    const row = { id, host: _meId, title: ev.title, d: ev.d || null, m: ev.m || null, day: ev.day || null, time: ev.time || null, location: ev.where || ev.location || null, tag: ev.tag || null, color: ev.color || null, created_at: new Date().toISOString() };
+    const row = { id, host: _meId, title: ev.title, d: ev.d || null, m: ev.m || null, day: ev.day || null, time: ev.time || null, location: ev.where || ev.location || null, tag: ev.tag || null, color: ev.color || null, description: ev.description || '', image: ev.image || null, crew_id: ev.crewId || null, created_at: new Date().toISOString() };
     mutate(() => { cacheInsert('events', row); cacheInsert('event_rsvps', { event_id: id, user_id: _meId }); },
       async () => { await sb.from('events').insert(row); await sb.from('event_rsvps').insert({ event_id: id, user_id: _meId }); });
     return id;
@@ -323,17 +328,31 @@ const Store = {
 
   // ---------- crews ----------
   allCrews() { return (_state.crews || []).slice(); },
+  crewById(id) { return this.allCrews().find(c => c.id === id) || null; },
   crews() { const ids = (_state.crew_members || []).filter(m => m.user_id === _meId).map(m => m.crew_id); return this.allCrews().filter(c => ids.includes(c.id)); },
   discoverCrews() { const ids = (_state.crew_members || []).filter(m => m.user_id === _meId).map(m => m.crew_id); return this.allCrews().filter(c => !ids.includes(c.id)); },
   hasCrew(name) { return this.crews().some(c => c.name.toLowerCase() === name.toLowerCase()); },
   crewMemberCount(id) { return (_state.crew_members || []).filter(m => m.crew_id === id).length; },
+  crewMembers(id) {
+    return (_state.crew_members || []).filter(m => m.crew_id === id)
+      .map(m => this.personById(m.user_id)).filter(Boolean);
+  },
+  isCrewOwner(id) { const c = this.crewById(id); return !!c && c.created_by === _meId; },
   addCrew(crew) {
     const existing = this.allCrews().find(c => c.name.toLowerCase() === crew.name.toLowerCase());
-    if (existing) { this.joinCrew(existing.id); return; }
+    if (existing) { this.joinCrew(existing.id); return existing.id; }
     const id = newId('cr');
-    const row = { id, emoji: crew.emoji || '🌟', name: crew.name, created_by: _meId };
+    const row = { id, emoji: crew.emoji || '🌟', name: crew.name, description: crew.description || '', photo: crew.photo || null, created_by: _meId, created_at: new Date().toISOString() };
     mutate(() => { cacheInsert('crews', row); cacheInsert('crew_members', { crew_id: id, user_id: _meId }); },
       async () => { await sb.from('crews').insert(row); await sb.from('crew_members').insert({ crew_id: id, user_id: _meId }); });
+    return id;
+  },
+  updateCrew(id, patch) {
+    if (!this.isCrewOwner(id)) return;
+    mutate(
+      () => { const arr = _state.crews || []; const i = arr.findIndex(c => c.id === id); if (i >= 0) { arr[i] = { ...arr[i], ...patch }; _state.crews = [...arr]; } },
+      () => sb.from('crews').update(patch).eq('id', id),
+    );
   },
   joinCrew(id) {
     if ((_state.crew_members || []).some(m => m.crew_id === id && m.user_id === _meId)) return;
@@ -342,6 +361,17 @@ const Store = {
   },
   leaveCrew(id) {
     mutate(() => cacheRemove('crew_members', m => m.crew_id === id && m.user_id === _meId), () => sb.from('crew_members').delete().match({ crew_id: id, user_id: _meId }));
+  },
+  removeCrewMember(crewId, userId) {
+    if (!this.isCrewOwner(crewId) || userId === _meId) return;
+    mutate(() => cacheRemove('crew_members', m => m.crew_id === crewId && m.user_id === userId), () => sb.from('crew_members').delete().match({ crew_id: crewId, user_id: userId }));
+  },
+  deleteCrew(id) {
+    if (!this.isCrewOwner(id)) return;
+    mutate(
+      () => { cacheRemove('crews', c => c.id === id); cacheRemove('crew_members', m => m.crew_id === id); },
+      () => sb.from('crews').delete().eq('id', id),
+    );
   },
 
   // ---------- shift swaps ----------
@@ -360,6 +390,52 @@ const Store = {
     if (covered) mutate(() => cacheRemove('swap_covers', c => c.swap_id === swapId && c.user_id === _meId), () => sb.from('swap_covers').delete().match({ swap_id: swapId, user_id: _meId }));
     else { const row = { swap_id: swapId, user_id: _meId }; mutate(() => cacheInsert('swap_covers', row), () => sb.from('swap_covers').insert(row)); }
   },
+
+  // ---------- chat groups ----------
+  allGroups() { return (_state.groups || []).slice(); },
+  myGroups() {
+    const ids = (_state.group_members || []).filter(m => m.user_id === _meId).map(m => m.group_id);
+    return this.allGroups().filter(g => ids.includes(g.id));
+  },
+  groupById(id) { return this.allGroups().find(g => g.id === id) || null; },
+  groupMembers(id) {
+    return (_state.group_members || []).filter(m => m.group_id === id)
+      .map(m => this.personById(m.user_id)).filter(Boolean);
+  },
+  isGroupOwner(id) { const g = this.groupById(id); return !!g && g.created_by === _meId; },
+  createGroup(name, memberIds = []) {
+    if (!name || !name.trim()) return null;
+    const id = newId('grp');
+    const row = { id, name: name.trim(), photo: null, created_by: _meId, created_at: new Date().toISOString() };
+    const members = Array.from(new Set([_meId, ...memberIds])).map(uid => ({ group_id: id, user_id: uid }));
+    mutate(
+      () => { cacheInsert('groups', row); members.forEach(m => cacheInsert('group_members', m)); },
+      async () => { await sb.from('groups').insert(row); await sb.from('group_members').insert(members); },
+    );
+    return id;
+  },
+  renameGroup(id, name) {
+    if (!name || !name.trim()) return;
+    mutate(
+      () => { const arr = _state.groups || []; const i = arr.findIndex(g => g.id === id); if (i >= 0) { arr[i] = { ...arr[i], name: name.trim() }; _state.groups = [...arr]; } },
+      () => sb.from('groups').update({ name: name.trim() }).eq('id', id),
+    );
+  },
+  setGroupPhoto(id, photo) {
+    mutate(
+      () => { const arr = _state.groups || []; const i = arr.findIndex(g => g.id === id); if (i >= 0) { arr[i] = { ...arr[i], photo }; _state.groups = [...arr]; } },
+      () => sb.from('groups').update({ photo }).eq('id', id),
+    );
+  },
+  addGroupMember(id, userId) {
+    if ((_state.group_members || []).some(m => m.group_id === id && m.user_id === userId)) return;
+    const row = { group_id: id, user_id: userId };
+    mutate(() => cacheInsert('group_members', row), () => sb.from('group_members').insert(row));
+  },
+  removeGroupMember(id, userId) {
+    mutate(() => cacheRemove('group_members', m => m.group_id === id && m.user_id === userId), () => sb.from('group_members').delete().match({ group_id: id, user_id: userId }));
+  },
+  leaveGroup(id) { this.removeGroupMember(id, _meId); },
 
   // ---------- teammates (approved members only) ----------
   teammates() {
@@ -395,12 +471,20 @@ const Store = {
   rejectUser(id)  { this.setMemberStatus(id, 'rejected'); },
 
   // ---------- chat / messages ----------
-  // A conversation id is either 'team' (whole-hospital room) or another user's id (1:1 DM).
-  // For DMs we store recipient=theirId and sender=me; we show both directions.
+  // A conversation id is 'team' (whole-hospital room), a group id, a crew id
+  // (crew chat), or another user's id (1:1 DM). Rooms/groups/crews show every
+  // member's messages; DMs store recipient=theirId and sender=me.
+  _isRoomConv(id) {
+    if (id === 'team') return true;
+    if ((_state.groups || []).some(g => g.id === id)) return true;
+    if ((_state.crews || []).some(c => c.id === id)) return true;
+    return false;
+  },
   conversations() {
-    // Build a list of people you can chat with: the Team room + every approved teammate.
+    // Build a list of people you can chat with: the Team room, your groups + every approved teammate.
     const mates = this.teammates();
     const list = [{ id: 'team', name: '🏥 Whole Hospital', team: null, isRoom: true }];
+    this.myGroups().forEach(g => list.push({ id: g.id, name: g.name, isRoom: true, isGroup: true, photo: g.photo, memberCount: this.groupMembers(g.id).length }));
     mates.forEach(m => list.push({ ...m, isRoom: false }));
     // annotate each with last message + unread-ish preview
     return list.map(c => {
@@ -415,8 +499,8 @@ const Store = {
   messagesWith(convId) {
     const all = _state.messages || [];
     let msgs;
-    if (convId === 'team') {
-      msgs = all.filter(m => m.recipient === 'team');
+    if (this._isRoomConv(convId)) {
+      msgs = all.filter(m => m.recipient === convId);
     } else {
       msgs = all.filter(m =>
         (m.sender === _meId && m.recipient === convId) ||
@@ -472,6 +556,11 @@ const Store = {
     const row = { id: newId('nom'), nominee: nomineeId, by: _meId, week: wk, reason: reason || null, created_at: new Date().toISOString() };
     mutate(() => cacheInsert('nominations', row), () => sb.from('nominations').insert(row));
   },
+
+  // ---------- calendar cover (device-local, like theme) ----------
+  calendarCover() { return (_prefs.calendarCover) || null; },
+  setCalendarCover(dataUrl) { _prefs.calendarCover = dataUrl; persistPrefs(); _emit(); },
+  clearCalendarCover() { _prefs.calendarCover = null; persistPrefs(); _emit(); },
 
   // ---------- danger zone ----------
   reset() {
