@@ -236,18 +236,112 @@ const NotifsScreen = () => (
 // ============================================================
 //  CHAT screen
 // ============================================================
-const ChatScreen = () => (
-  <>
-    <div className="page-head" style={{marginBottom:14}}>
-      <div>
-        <div className="page-greet"><span className="hand">messages</span></div>
-        <h1 className="page-title">Chat</h1>
+const ChatScreen = () => {
+  useStore();
+  const convos = Store.conversations();
+  const [active, setActive] = useS3('team');
+  const [draft, setDraft] = useS3('');
+  const bodyRef = React.useRef(null);
+  const activeConv = convos.find(c => c.id === active) || convos[0];
+  const msgs = Store.messagesWith(active);
+
+  React.useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+  }, [msgs.length, active]);
+
+  const send = () => { if (draft.trim()) { Store.sendMessage(active, draft.trim()); setDraft(''); } };
+  const dayLabel = (iso) => {
+    const d = new Date(iso); const today = new Date();
+    if (d.toDateString() === today.toDateString()) return 'Today';
+    return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <>
+      <div className="page-head" style={{marginBottom:14}}>
+        <div>
+          <div className="page-greet"><span className="hand">messages</span></div>
+          <h1 className="page-title">Chat</h1>
+        </div>
       </div>
-    </div>
-    <EmptyState emoji="💬" title="No conversations yet"
-      sub="Direct messages and team group chats appear here once your coworkers are on Rehab.Wisal. One-to-one and group threads, photos, and quick handoffs — all in one place." />
-  </>
-);
+      <div className="chat-layout">
+        <div className="chat-list">
+          <div className="search-bar" style={{marginBottom:12, padding:'8px 14px'}}>
+            <Icon name="search" size={16}/>
+            <input placeholder="Search people…" />
+          </div>
+          {convos.map(c => {
+            const on = c.id === active;
+            return (
+              <div key={c.id} className={`chat-list-item ${on ? 'active' : ''}`} onClick={() => setActive(c.id)}>
+                {c.isRoom
+                  ? <div style={{width:40, height:40, borderRadius:12, background:'var(--teal-tint)', display:'grid', placeItems:'center', fontSize:20, flexShrink:0}}>🏥</div>
+                  : <Avatar person={c} size="md" />}
+                <div className="chat-list-info">
+                  <div className="chat-list-name">
+                    <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{c.isRoom ? 'Whole Hospital' : c.name}</span>
+                    {c.lastAt && <span className="chat-list-time">{timeAgo(c.lastAt)}</span>}
+                  </div>
+                  <div className="chat-list-msg">{c.last || (c.isRoom ? 'Team-wide room — say hi 👋' : 'No messages yet')}</div>
+                </div>
+              </div>
+            );
+          })}
+          {convos.length <= 1 && (
+            <div style={{fontSize:12.5, color:'var(--ink-soft)', padding:'12px 8px', lineHeight:1.5}}>
+              Teammates appear here as they join Rehab.Wisal. The <strong>Whole Hospital</strong> room is always open.
+            </div>
+          )}
+        </div>
+
+        <div className="chat-thread">
+          <div className="chat-head">
+            {activeConv && activeConv.isRoom
+              ? <div style={{width:40, height:40, borderRadius:12, background:'var(--teal-tint)', display:'grid', placeItems:'center', fontSize:20}}>🏥</div>
+              : <Avatar person={activeConv} size="md" />}
+            <div style={{flex:1, minWidth:0}}>
+              <div style={{fontWeight:600, color:'var(--navy)'}}>{activeConv ? (activeConv.isRoom ? 'Whole Hospital' : activeConv.name) : 'Chat'}</div>
+              <div style={{fontSize:12, color:'var(--ink-soft)'}}>{activeConv && activeConv.isRoom ? 'Everyone on Rehab.Wisal' : (activeConv ? (activeConv.role || (TEAMS[activeConv.team]||{}).label) : '')}</div>
+            </div>
+          </div>
+
+          <div className="chat-body" ref={bodyRef}>
+            {msgs.length === 0 ? (
+              <div style={{margin:'auto', textAlign:'center', color:'var(--ink-soft)', maxWidth:280}}>
+                <div style={{fontSize:38}}>{activeConv && activeConv.isRoom ? '🏥' : '👋'}</div>
+                <div style={{marginTop:8, fontSize:14}}>{activeConv && activeConv.isRoom ? 'Start the conversation with your whole team.' : `Say hello to ${activeConv ? activeConv.first : ''}.`}</div>
+              </div>
+            ) : msgs.map((m, i) => {
+              const mine = m.sender === Store.meId();
+              const sender = FIND(m.sender);
+              const showDay = i === 0 || dayLabel(m.created_at) !== dayLabel(msgs[i-1].created_at);
+              return (
+                <React.Fragment key={m.id}>
+                  {showDay && <div className="chat-day">{dayLabel(m.created_at)}</div>}
+                  <div className={`chat-msg ${mine ? 'me' : ''}`}>
+                    {!mine && <Avatar person={sender} size="sm" />}
+                    <div>
+                      {!mine && activeConv && activeConv.isRoom && <div style={{fontSize:11, color:'var(--ink-soft)', margin:'0 0 2px 4px', fontWeight:600}}>{sender ? sender.first : 'Teammate'}</div>}
+                      <div className="chat-bubble">{m.text}</div>
+                      <div style={{fontSize:10.5, color:'var(--ink-soft)', marginTop:3, padding:'0 4px', textAlign: mine ? 'right' : 'left'}}>{timeAgo(m.created_at)}</div>
+                    </div>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+          </div>
+
+          <div className="chat-input">
+            <input className="input" placeholder={`Message ${activeConv ? (activeConv.isRoom ? 'the team' : activeConv.first) : ''}…`}
+              value={draft} onChange={e=>setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') send(); }} />
+            <button className="btn btn-primary btn-icon" onClick={send}><Icon name="send" size={16}/></button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
 
 // ============================================================
 //  SEARCH / DISCOVER screen

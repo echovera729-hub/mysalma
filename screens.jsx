@@ -5,22 +5,96 @@ const { useState: useState2 } = React;
 // ============================================================
 //  AUX rail widgets
 // ============================================================
-const AuxSpotlight = () => (
-  <div className="aux-section">
-    <div className="spotlight">
-      <span className="spotlight-label">✦ this week's spotlight</span>
-      <div style={{marginTop:14, position:'relative'}}>
-        <div style={{fontSize:14, lineHeight:1.5, color:'rgba(255,255,255,.9)'}}>
-          Each week, Rehab.Wisal features a colleague nominated by their peers — a small way to make sure everyone gets seen.
+const NominateModal = ({ onClose }) => {
+  useStore();
+  const mates = Store.teammates();
+  const mine = Store.myNominationThisWeek();
+  const [pick, setPick] = useState2(mine ? mine.nominee : null);
+  const [reason, setReason] = useState2(mine ? (mine.reason || '') : '');
+  const submit = () => { if (pick) { Store.nominate(pick, reason.trim()); onClose(); } };
+  return (
+    <div style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
+      <div style={{width:'min(460px,100%)', maxHeight:'88vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:26, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
+          <h2 style={{fontSize:21}}>✦ Nominate for Spotlight</h2>
+          <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
         </div>
-        <div className="spotlight-foot" style={{position:'relative', marginTop:14}}>
-          <span style={{opacity:.8, fontSize:12.5}}>No nominations yet</span>
-          <button className="btn btn-sm" style={{background:'var(--butter)', color:'#8C6A1A', borderColor:'var(--butter)'}}>Nominate someone</button>
-        </div>
+        <p style={{fontSize:13, color:'var(--ink-soft)', margin:'0 0 16px'}}>Pick a colleague who deserves to be seen this week. Most-nominated is featured. You get one vote (you can change it).</p>
+        {mates.length === 0 ? (
+          <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>No teammates on Rehab.Wisal yet — nominations open up as your team joins. 🌱</div>
+        ) : (<>
+          <div style={{display:'flex', flexDirection:'column', gap:8, maxHeight:240, overflow:'auto', marginBottom:14}}>
+            {mates.map(p => {
+              const on = pick === p.id;
+              return (
+                <button key={p.id} onClick={()=>setPick(p.id)} style={{
+                  display:'flex', alignItems:'center', gap:12, padding:'10px 12px', cursor:'pointer', textAlign:'left',
+                  borderRadius:12, background: on ? 'var(--teal-tint)' : 'var(--paper)',
+                  border:`1.5px solid ${on ? 'var(--teal)' : 'var(--line)'}`,
+                }}>
+                  <Avatar person={p} size="md" />
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontWeight:600, fontSize:14, color:'var(--navy)'}}>{p.name}</div>
+                    <div style={{fontSize:12, color:'var(--ink-soft)'}}>{p.role || (TEAMS[p.team]||{}).label}</div>
+                  </div>
+                  {on && <span style={{color:'var(--teal-deep)', fontWeight:700}}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+          <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Why? (optional)</label>
+          <input className="input" value={reason} onChange={e=>setReason(e.target.value)} placeholder="e.g. calm in every storm, always makes time to teach…" onKeyDown={e=>{ if(e.key==='Enter') submit(); }} />
+          <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:18}}>
+            <button className="btn" onClick={onClose}>Cancel</button>
+            <button className="btn btn-primary" disabled={!pick} style={!pick?{opacity:.5}:{}} onClick={submit}>{mine ? 'Update vote' : 'Nominate'}</button>
+          </div>
+        </>)}
       </div>
     </div>
-  </div>
-);
+  );
+};
+
+const AuxSpotlight = () => {
+  useStore();
+  const [open, setOpen] = useState2(false);
+  const sp = Store.spotlight();
+  const mine = Store.myNominationThisWeek();
+  const totalNoms = Store.nominationsThisWeek().length;
+  return (
+    <div className="aux-section">
+      <div className="spotlight">
+        <span className="spotlight-label">✦ this week's spotlight</span>
+        {sp ? (
+          <div style={{marginTop:14, position:'relative'}}>
+            <div style={{display:'flex', gap:14, alignItems:'center'}}>
+              <Avatar person={sp.person} size="lg" ring="rgba(255,255,255,.35)" />
+              <div style={{minWidth:0}}>
+                <div className="spotlight-name">{sp.person ? sp.person.name : 'A teammate'}</div>
+                <div className="spotlight-role">{sp.person ? (sp.person.role || (TEAMS[sp.person.team]||{}).label) : ''}</div>
+              </div>
+            </div>
+            {sp.reason && <div className="spotlight-quote" style={{marginTop:12}}>"{sp.reason}"</div>}
+            <div className="spotlight-foot" style={{position:'relative', marginTop:14}}>
+              <span style={{opacity:.85, fontSize:12.5}}>🌟 {sp.count} nomination{sp.count!==1?'s':''} this week</span>
+              <button className="btn btn-sm" style={{background:'var(--butter)', color:'#8C6A1A', borderColor:'var(--butter)'}} onClick={()=>setOpen(true)}>{mine ? 'Change vote' : 'Nominate'}</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{marginTop:14, position:'relative'}}>
+            <div style={{fontSize:14, lineHeight:1.5, color:'rgba(255,255,255,.9)'}}>
+              Each week, Rehab.Wisal features a colleague nominated by their peers — a small way to make sure everyone gets seen.
+            </div>
+            <div className="spotlight-foot" style={{position:'relative', marginTop:14}}>
+              <span style={{opacity:.8, fontSize:12.5}}>{totalNoms > 0 ? `${totalNoms} vote${totalNoms!==1?'s':''} in` : 'No nominations yet'}</span>
+              <button className="btn btn-sm" style={{background:'var(--butter)', color:'#8C6A1A', borderColor:'var(--butter)'}} onClick={()=>setOpen(true)}>Nominate someone</button>
+            </div>
+          </div>
+        )}
+      </div>
+      {open && <NominateModal onClose={()=>setOpen(false)} />}
+    </div>
+  );
+};
 
 const AuxEvents = ({ go }) => {
   useStore();

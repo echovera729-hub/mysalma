@@ -46,6 +46,8 @@ function blankState() {
     swap_covers: [],       // [{swap_id,user_id}]
     moods: [],             // [{user_id,day,mood}]
     dailies: [],           // [{user_id,day,answer}]
+    messages: [],          // [{id,sender,recipient,text,created_at}]  (recipient='team' = whole-hospital room)
+    nominations: [],       // [{id,nominee,by,week,reason,created_at}]
   };
 }
 
@@ -124,7 +126,7 @@ function readScaledImage(file, max = 1280, quality = 0.82) {
 // ════════════════════════════════════════════════════════════════
 //  Supabase plumbing
 // ════════════════════════════════════════════════════════════════
-const TABLES = ['profiles','posts','reactions','comments','events','event_rsvps','crews','crew_members','swaps','swap_covers','moods','dailies'];
+const TABLES = ['profiles','posts','reactions','comments','events','event_rsvps','crews','crew_members','swaps','swap_covers','moods','dailies','messages','nominations'];
 
 async function loadAll() {
   const results = await Promise.all(TABLES.map(t => sb.from(t).select('*')));
@@ -391,6 +393,85 @@ const Store = {
   },
   approveUser(id) { this.setMemberStatus(id, 'approved'); },
   rejectUser(id)  { this.setMemberStatus(id, 'rejected'); },
+
+  // ---------- chat / messages ----------
+  // A conversation id is either 'team' (whole-hospital room) or another user's id (1:1 DM).
+  // For DMs we store recipient=theirId and sender=me; we show both directions.
+  conversations() {
+    // Build a list of people you can chat with: the Team room + every approved teammate.
+    const mates = this.teammates();
+    const list = [{ id: 'team', name: '🏥 Whole Hospital', team: null, isRoom: true }];
+    mates.forEach(m => list.push({ ...m, isRoom: false }));
+    // annotate each with last message + unread-ish preview
+    return list.map(c => {
+      const msgs = this.messagesWith(c.id);
+      const last = msgs[msgs.length - 1];
+      return { ...c, last: last ? last.text : null, lastAt: last ? last.created_at : null };
+    }).sort((a, b) => {
+      if (a.id === 'team') return -1; if (b.id === 'team') return 1;
+      return new Date(b.lastAt || 0) - new Date(a.lastAt || 0);
+    });
+  },
+  messagesWith(convId) {
+    const all = _state.messages || [];
+    let msgs;
+    if (convId === 'team') {
+      msgs = all.filter(m => m.recipient === 'team');
+    } else {
+      msgs = all.filter(m =>
+        (m.sender === _meId && m.recipient === convId) ||
+        (m.sender === convId && m.recipient === _meId));
+    }
+    return msgs.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  },
+  sendMessage(convId, text) {
+    if (!text || !text.trim()) return;
+    const row = { id: newId('msg'), sender: _meId, recipient: convId, text: text.trim(), created_at: new Date().toISOString() };
+    mutate(() => cacheInsert('messages', row), () => sb.from('messages').insert(row));
+  },
+
+  // ---------- spotlight nominations ----------
+  weekKey() {
+    // ISO-ish week bucket: year + week number, so nominations reset weekly.
+    const d = new Date();
+    const onejan = new Date(d.getFullYear(), 0, 1);
+    const week = Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+    return d.getFullYear() + '-W' + week;
+  },
+  nominationsThisWeek() {
+    const wk = this.weekKey();
+    return (_state.nominations || []).filter(n => n.week === wk);
+  },
+  myNominationThisWeek() {
+    const wk = this.weekKey();
+    return (_state.nominations || []).find(n => n.week === wk && n.by === _meId) || null;
+  },
+  // Returns the current spotlight: the person with the most nominations this week.
+  spotlight() {
+    const noms = this.nominationsThisWeek();
+    if (!noms.length) return null;
+    const tally = {};
+    noms.forEach(n => { tally[n.nominee] = (tally[n.nominee] || 0) + 1; });
+    let topId = null, topN = 0;
+    Object.entries(tally).forEach(([id, n]) => { if (n > topN) { topN = n; topId = id; } });
+    if (!topId) return null;
+    const reason = (noms.find(n => n.nominee === topId && n.reason) || {}).reason || '';
+    return { person: this.personById(topId), count: topN, reason };
+  },
+  nominate(nomineeId, reason) {
+    const wk = this.weekKey();
+    const existing = this.myNominationThisWeek();
+    if (existing) {
+      // change your vote
+      mutate(
+        () => { const arr = _state.nominations; const i = arr.findIndex(n => n.id === existing.id); if (i >= 0) { arr[i] = { ...arr[i], nominee: nomineeId, reason: reason || arr[i].reason }; _state.nominations = [...arr]; } },
+        () => sb.from('nominations').update({ nominee: nomineeId, reason: reason || null }).eq('id', existing.id),
+      );
+      return;
+    }
+    const row = { id: newId('nom'), nominee: nomineeId, by: _meId, week: wk, reason: reason || null, created_at: new Date().toISOString() };
+    mutate(() => cacheInsert('nominations', row), () => sb.from('nominations').insert(row));
+  },
 
   // ---------- danger zone ----------
   reset() {
