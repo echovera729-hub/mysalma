@@ -9,13 +9,17 @@ const ComposerScreen = ({ onClose }) => {
   const [type, setType] = useS3('moment'); // moment | kudos | win | capsule | watch
   const [body, setBody] = useS3('');
   const [photos, setPhotos] = useS3([]); // [{ src }]
-  const [kudosTo, setKudosTo] = useS3([]); // typed names
+  const [kudosTo, setKudosTo] = useS3([]); // typed/tagged names
   const [kudosInput, setKudosInput] = useS3('');
+  const [kudosFocus, setKudosFocus] = useS3(false);
   const [tag, setTag] = useS3('Calm under pressure');
   const [capsuleWhen, setCapsuleWhen] = useS3('1 year');
   const [busy, setBusy] = useS3(false);
   const fileRef = React.useRef(null);
-  const addKudosName = () => { const n = kudosInput.trim(); if (n && !kudosTo.includes(n)) setKudosTo([...kudosTo, n]); setKudosInput(''); };
+  const addKudosName = (name) => { const n = (name != null ? name : kudosInput).trim(); if (n && !kudosTo.includes(n)) setKudosTo([...kudosTo, n]); setKudosInput(''); };
+  const kudosSuggestions = kudosInput.trim()
+    ? Store.teammates().filter(m => !kudosTo.includes(m.name) && m.name.toLowerCase().includes(kudosInput.trim().toLowerCase())).slice(0, 5)
+    : [];
 
   const addPhotos = async (files) => {
     setBusy(true);
@@ -101,10 +105,29 @@ const ComposerScreen = ({ onClose }) => {
                   <button onClick={()=>setKudosTo(kudosTo.filter(x=>x!==n))} style={{background:'rgba(255,255,255,.2)', border:0, color:'white', width:18, height:18, borderRadius:'50%', cursor:'pointer', display:'grid', placeItems:'center', fontSize:11}}>×</button>
                 </span>
               ))}
-              <input className="input" value={kudosInput} onChange={e=>setKudosInput(e.target.value)}
-                onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); addKudosName(); } }}
-                placeholder={kudosTo.length ? 'add another…' : "type a coworker's name…"}
-                style={{flex:1, minWidth:160, width:'auto'}} />
+              <div style={{position:'relative', flex:1, minWidth:160}}>
+                <input className="input" value={kudosInput} onChange={e=>setKudosInput(e.target.value)}
+                  onFocus={()=>setKudosFocus(true)} onBlur={()=>setTimeout(()=>setKudosFocus(false), 120)}
+                  onKeyDown={e=>{ if(e.key==='Enter'){ e.preventDefault(); addKudosName(); } }}
+                  placeholder={kudosTo.length ? 'add another…' : "type a coworker's name…"}
+                  style={{width:'100%'}} />
+                {kudosFocus && kudosSuggestions.length > 0 && (
+                  <div style={{position:'absolute', top:'calc(100% + 6px)', left:0, right:0, zIndex:10, background:'var(--paper)', border:'1px solid var(--line)', borderRadius:12, boxShadow:'var(--shadow-md)', overflow:'hidden'}}>
+                    {kudosSuggestions.map(m => (
+                      <div key={m.id} onMouseDown={()=>addKudosName(m.name)}
+                        style={{display:'flex', alignItems:'center', gap:10, padding:'8px 12px', cursor:'pointer'}}
+                        onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
+                        onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                        <Avatar person={m} size="sm" />
+                        <div style={{minWidth:0}}>
+                          <div style={{fontSize:13.5, fontWeight:600, color:'var(--navy)'}}>{m.name}</div>
+                          <div style={{fontSize:11.5, color:'var(--ink-soft)'}}>{m.role || (TEAMS[m.team]||{}).label}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div style={{marginTop:14, fontSize:12.5, fontWeight:600, color:'#8C6A1A', marginBottom:6}}>FOR…</div>
             <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
