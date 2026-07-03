@@ -79,13 +79,13 @@ const Post = ({ post }) => {
         }} />
       )}
 
-      {(post.kudosNames?.length || post.kudosTo?.length) > 0 && (
+      {((post.kudos_names || post.kudosNames)?.length || post.kudosTo?.length) > 0 && (
         <div style={{padding: '0 18px 14px'}}>
           <div style={{display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'rgba(245,221,157,.22)', borderRadius:12, border:'1px solid #F0E5C0', flexWrap:'wrap'}}>
             <span style={{fontSize:18}}>✦</span>
             <span style={{fontSize:13, color:'#8C6A1A', fontWeight:600}}>Bright Spot to:</span>
-            <span style={{fontSize:13, color:'var(--navy)', fontWeight:600}}>{(post.kudosNames || post.kudosTo.map(p => FIND(p)?.first || p)).join(' & ')}</span>
-            {post.kudosTag && <span className="pill pill-butter" style={{fontSize:11}}>✦ {post.kudosTag}</span>}
+            <span style={{fontSize:13, color:'var(--navy)', fontWeight:600}}>{((post.kudos_names || post.kudosNames) || (post.kudosTo || []).map(p => FIND(p)?.first || p)).join(' & ')}</span>
+            {(post.kudos_tag || post.kudosTag) && <span className="pill pill-butter" style={{fontSize:11}}>✦ {post.kudos_tag || post.kudosTag}</span>}
           </div>
         </div>
       )}
