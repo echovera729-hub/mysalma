@@ -44,6 +44,7 @@ function blankState() {
     crew_members: [],      // [{crew_id,user_id}]
     groups: [],            // [{id,name,photo,created_by,created_at}]  -- chat group
     group_members: [],     // [{group_id,user_id}]
+    follows: [],           // [{follower_id,followee_id}]
     swaps: [],             // [{id,by,need,offer,note,urgency,team,created_at}]
     swap_covers: [],       // [{swap_id,user_id}]
     moods: [],             // [{user_id,day,mood}]
@@ -128,7 +129,7 @@ function readScaledImage(file, max = 1280, quality = 0.82) {
 // ════════════════════════════════════════════════════════════════
 //  Supabase plumbing
 // ════════════════════════════════════════════════════════════════
-const TABLES = ['profiles','posts','reactions','comments','events','event_rsvps','crews','crew_members','groups','group_members','swaps','swap_covers','moods','dailies','messages','nominations'];
+const TABLES = ['profiles','posts','reactions','comments','events','event_rsvps','crews','crew_members','groups','group_members','follows','swaps','swap_covers','moods','dailies','messages','nominations'];
 
 async function loadAll() {
   const results = await Promise.all(TABLES.map(t => sb.from(t).select('*')));
@@ -444,6 +445,20 @@ const Store = {
       () => { cacheRemove('groups', g => g.id === id); cacheRemove('group_members', m => m.group_id === id); },
       () => sb.from('groups').delete().eq('id', id),
     );
+  },
+
+  // ---------- following ----------
+  followingIds() { return (_state.follows || []).filter(f => f.follower_id === _meId).map(f => f.followee_id); },
+  isFollowing(id) { return this.followingIds().includes(id); },
+  followerCount(id) { return (_state.follows || []).filter(f => f.followee_id === id).length; },
+  toggleFollow(id) {
+    if (id === _meId) return;
+    if (this.isFollowing(id)) {
+      mutate(() => cacheRemove('follows', f => f.follower_id === _meId && f.followee_id === id), () => sb.from('follows').delete().match({ follower_id: _meId, followee_id: id }));
+    } else {
+      const row = { follower_id: _meId, followee_id: id };
+      mutate(() => cacheInsert('follows', row), () => sb.from('follows').insert(row));
+    }
   },
 
   // ---------- teammates (approved members only) ----------

@@ -517,8 +517,38 @@ const SearchScreen = ({ go }) => {
       </div>
 
       <div style={{marginTop:22}}>
-        <EmptyState emoji="🔍" title="People &amp; posts will be searchable here"
-          sub="Once your hospital is on Rehab.Wisal, search finds coworkers, Bright Spots, wins, events and photos across every team." />
+        <div className="section-head"><h3>People</h3><span className="meta">follow teammates to fill your Following tab</span></div>
+        {(() => {
+          const mates = Store.teammates().filter(m => !q.trim() || m.name.toLowerCase().includes(q.trim().toLowerCase()));
+          if (mates.length === 0) {
+            return (
+              <EmptyState emoji="👥" title="No teammates yet"
+                sub="As coworkers join Rehab.Wisal, they'll show up here so you can follow them." />
+            );
+          }
+          return (
+            <div style={{display:'flex', flexDirection:'column', gap:2}}>
+              {mates.map(m => {
+                const following = Store.isFollowing(m.id);
+                return (
+                  <div key={m.id} className="crew-row" style={{cursor:'default'}}>
+                    <Avatar person={m} size="md" />
+                    <div className="crew-info">
+                      <div className="crew-name">{m.name}</div>
+                      <div className="crew-meta">{m.role || (TEAMS[m.team]||{}).label}</div>
+                    </div>
+                    <button className={`btn btn-sm ${following ? '' : 'btn-primary'}`} onClick={()=>Store.toggleFollow(m.id)}>{following ? '✓ Following' : 'Follow'}</button>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+      </div>
+
+      <div style={{marginTop:22}}>
+        <EmptyState emoji="🔍" title="Posts &amp; events will be searchable here"
+          sub="Once your hospital is on Rehab.Wisal, search finds Bright Spots, wins, events and photos across every team." />
       </div>
     </>
   );

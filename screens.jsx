@@ -202,15 +202,16 @@ const HomeScreen = ({ tweak, onCompose }) => {
   ];
   const all = Store.allPosts();
   const meId = Store.meId();
+  const followingIds = Store.followingIds();
   const posts = all.filter(p => {
     if (feedTab === 'team')      return FIND(p.author)?.team === myTeam;
-    if (feedTab === 'following') return p.author !== meId && p.author !== 'me' && p.author !== 'sara';
+    if (feedTab === 'following') return followingIds.includes(p.author);
     if (feedTab === 'bright')    return p.featured === 'kudos' || p.featured === 'win' || (p.kudos_names && p.kudos_names.length) || (p.kudosTo && p.kudosTo.length);
     return true;
   });
   const emptyMsg = {
     foryou: "Your feed is empty — share the first moment with the New post button, and it'll show up right here. ✨",
-    following: "Posts from your teammates show up here. As coworkers join Rehab.Wisal and share, this fills in.",
+    following: followingIds.length ? "Posts from people you follow will show up here as they share." : "You're not following anyone yet — head to Discover to follow teammates.",
     team: `Posts from your ${(TEAMS[myTeam]||{}).label || ''} team will gather here — be the first to share something. ✨`,
     bright: "No Bright Spots yet. Send someone kudos with the New post button — it's a lovely way to start. ✦",
   }[feedTab];
