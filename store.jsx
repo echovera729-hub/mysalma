@@ -13,8 +13,7 @@
 // ════════════════════════════════════════════════════════════════
 
 const SUPA = (typeof window !== 'undefined' && window.SUPABASE_ENABLED === true && window.supabase);
-const LS_KEY = 'mysalma_v2';
-const PREF_KEY = 'mysalma_prefs'; // device-local prefs (saved posts), both modes
+const LS_KEY = 'mysalma_v2'; // local-demo-mode-only content cache (no Supabase configured)
 
 const DEFAULT_SETTINGS = {
   quietMode: true, pulse: true, kudosPublic: true, capsuleReminders: true,
@@ -40,7 +39,6 @@ const DEFAULT_PROFILE = {
 
 // In-memory cache — identical shape in both modes.
 let _state = blankState();
-let _prefs = loadPrefs();
 
 function blankState() {
   return {
@@ -81,9 +79,6 @@ function persistLocal() {
     if (String(e).match(/quota/i)) alert("Rehab.Wisal's local storage is full — try removing a post with large photos.");
   }
 }
-function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY)) || { saved: {}, theme: {} }; } catch (e) { return { saved: {}, theme: {} }; } }
-function persistPrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(_prefs)); } catch (e) {} }
-
 function _emit() { _listeners.forEach(fn => fn()); }
 function dayKey() { return new Date().toISOString().slice(0, 10); }
 function newId(prefix) { return (SUPA && crypto.randomUUID) ? crypto.randomUUID() : (prefix + Date.now() + Math.random().toString(36).slice(2, 6)); }
@@ -660,7 +655,7 @@ const Store = {
       return;
     }
     if (confirm('Reset Rehab.Wisal? This clears all your posts, reactions, photos and profile changes on this device.')) {
-      localStorage.removeItem(LS_KEY); localStorage.removeItem(PREF_KEY); location.reload();
+      localStorage.removeItem(LS_KEY); location.reload();
     }
   },
 };
