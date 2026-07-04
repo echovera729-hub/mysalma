@@ -282,7 +282,7 @@ const App = () => {
           {page === 'notifs'   && <NotifsScreen />}
           {page === 'admin'    && Store.isAdmin() && <AdminScreen />}
           {page === 'search'   && <SearchScreen go={setPage} />}
-          {page === 'settings' && <SettingsScreen />}
+          {page === 'settings' && <SettingsScreen go={setPage} />}
         </main>
         <aside className="aux">
           {page === 'home' ? <AuxRail tweak={t} go={setPage} /> :

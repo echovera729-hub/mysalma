@@ -714,7 +714,7 @@ const OnboardingScreen = ({ onDone }) => {
 // ============================================================
 //  SETTINGS
 // ============================================================
-const SettingsScreen = () => {
+const SettingsScreen = ({ go }) => {
   useStore();
   const prof = Store.profile();
   const [section, setSection] = useS3('account');
@@ -804,7 +804,7 @@ const SettingsScreen = () => {
               <input className="input" style={{maxWidth:240, fontFamily:'var(--font-hand)', fontSize:17, color:'var(--teal-deep)'}} value={prof.tagline} maxLength={48} onChange={e=>Store.setProfile({tagline:e.target.value})} />
             </div>
             <div className="settings-row">
-              <div className="settings-row-info"><h4 style={{color:'#B05050'}}>{Store.mode === 'supabase' ? 'Sign out' : 'Reset Rehab.Wisal'}</h4><p>{Store.mode === 'supabase' ? 'Sign out of MySalma on this device' : 'Clear all your posts, reactions, photos & profile changes on this device'}</p></div>
+              <div className="settings-row-info"><h4 style={{color:'#B05050'}}>{Store.mode === 'supabase' ? 'Sign out' : 'Reset Rehab.Wisal'}</h4><p>{Store.mode === 'supabase' ? 'Sign out of Rehab.Wisal on this device' : 'Clear all your posts, reactions, photos & profile changes on this device'}</p></div>
               <button className="btn btn-sm" style={{borderColor:'#E7B7B7', color:'#B05050'}} onClick={()=>Store.reset()}>{Store.mode === 'supabase' ? 'Sign out' : 'Reset data'}</button>
             </div>
           </>)}
@@ -899,7 +899,7 @@ const SettingsScreen = () => {
 
             <div className="divider" style={{margin:'20px 0'}}></div>
 
-            <h4 style={{fontSize:14.5, marginBottom:10}}>Density</h4>
+            <h4 style={{fontSize:14.5, marginBottom:10, marginTop:0}}>Density</h4>
             <div style={{display:'flex', gap:8}}>
               {DENS_OPTS.map(([id,label]) => {
                 const on = curDensity === id;
@@ -911,6 +911,61 @@ const SettingsScreen = () => {
             </div>
             </>);
           })()}
+
+          {section === 'team' && (() => {
+            const crews = Store.crews();
+            const team = (TEAMS[prof.team] || {}).label || prof.team;
+            return (<>
+              <h3 style={{fontSize:20, marginBottom:18}}>My team & crews</h3>
+              <div className="settings-row">
+                <div className="settings-row-info"><h4>Department</h4><p>Sets who counts as "my team" in your feed</p></div>
+                <select className="input" style={{maxWidth:200}} value={prof.team} onChange={e=>Store.setProfile({team:e.target.value})}>
+                  {Object.keys(TEAMS).map(k => <option key={k} value={k}>{TEAMS[k].label}</option>)}
+                </select>
+              </div>
+              <div className="divider" style={{margin:'8px 0 18px'}}></div>
+              <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10}}>
+                <h4 style={{fontSize:14.5}}>Your crews ({crews.length})</h4>
+                <button className="btn btn-sm" onClick={()=>go && go('crews')}>Discover crews →</button>
+              </div>
+              {crews.length === 0 ? (
+                <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>
+                  You haven't joined any crews yet. <span style={{color:'var(--teal-deep)', fontWeight:600, cursor:'pointer'}} onClick={()=>go && go('crews')}>Find your people →</span>
+                </div>
+              ) : (
+                <div style={{display:'flex', flexDirection:'column', gap:2}}>
+                  {crews.map(c => (
+                    <div key={c.id} className="crew-row" onClick={()=>go && go('crews')}>
+                      <div className="crew-icon" style={{backgroundImage: c.photo?`url(${c.photo})`:undefined, backgroundSize:'cover', backgroundPosition:'center'}}>{!c.photo && c.emoji}</div>
+                      <div className="crew-info">
+                        <div className="crew-name">{c.name}</div>
+                        <div className="crew-meta">{Store.crewMemberCount(c.id)} member{Store.crewMemberCount(c.id)!==1?'s':''}{c.created_by===Store.meId()?' · you own this':''}</div>
+                      </div>
+                      {c.created_by !== Store.meId() && <button className="btn btn-sm btn-ghost" onClick={(e)=>{e.stopPropagation(); Store.leaveCrew(c.id);}}>Leave</button>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>);
+          })()}
+
+          {section === 'help' && (<>
+            <h3 style={{fontSize:20, marginBottom:18}}>Help & feedback</h3>
+            <div className="banner" style={{marginBottom:18}}>🫶 Rehab.Wisal is built for and with your team — feedback shapes what gets built next.</div>
+            <div className="settings-row">
+              <div className="settings-row-info"><h4>Contact support</h4><p>Questions, bugs, or access issues</p></div>
+              <a className="btn btn-sm" href="mailto:support@rehabwisal.org">Email support</a>
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-info"><h4>Send feedback or a feature idea</h4><p>Tell us what's working and what's missing</p></div>
+              <a className="btn btn-sm btn-primary" href="mailto:feedback@rehabwisal.org?subject=Rehab.Wisal%20feedback">Send feedback</a>
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-info"><h4>Admin approvals</h4><p>{Store.isAdmin() ? 'You can review pending sign-ups' : 'Ask your administrator to approve new teammates'}</p></div>
+              {Store.isAdmin() && <button className="btn btn-sm" onClick={()=>go && go('admin')}>Go to approvals →</button>}
+            </div>
+            <div className="settings-row"><div><h4>Version</h4></div><span className="pill">Rehab.Wisal · {Store.mode === 'supabase' ? 'connected' : 'local demo'}</span></div>
+          </>)}
         </div>
       </div>
     </>
