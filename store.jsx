@@ -163,13 +163,22 @@ function cacheRemove(table, pred) { _state[table] = (_state[table] || []).filter
 function mutate(localChange, remote) {
   localChange();
   _emit();
-  if (SUPA && remote) { Promise.resolve(remote()).catch(err => { console.error('[Rehab.Wisal] sync error', err); scheduleReload(); }); }
+  if (SUPA && remote) {
+    Promise.resolve(remote()).catch(err => {
+      console.error('[Rehab.Wisal] sync error', err);
+      _lastSyncError = (err && err.message) || 'Could not save your change — please try again.';
+      _emit();
+      scheduleReload();
+    });
+  }
   else persistLocal();
 }
 
 // ════════════════════════════════════════════════════════════════
 //  Store API — synchronous getters, dual-mode mutations
 // ════════════════════════════════════════════════════════════════
+let _lastSyncError = null;
+
 const Store = {
   get mode() { return SUPA ? 'supabase' : 'local'; },
   isReady() { return _inited; },
@@ -639,6 +648,10 @@ const Store = {
   calendarCover() { return this.profile().calendar_cover || null; },
   setCalendarCover(dataUrl) { this.setProfile({ calendar_cover: dataUrl }); },
   clearCalendarCover() { this.setProfile({ calendar_cover: null }); },
+
+  // ---------- sync error banner (surfaces silent save failures, e.g. schema drift) ----------
+  syncError() { return _lastSyncError; },
+  clearSyncError() { _lastSyncError = null; _emit(); },
 
   // ---------- danger zone ----------
   reset() {

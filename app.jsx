@@ -301,6 +301,14 @@ const App = () => {
 
       {showCompose && <ComposerScreen onClose={() => setShowCompose(false)} />}
       <TweaksUI t={t} set={set} />
+      {Store.mode === 'supabase' && Store.syncError() && (
+        <div style={{position:'fixed', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:400,
+          background:'#3A1F22', color:'#FBE0DF', padding:'12px 18px', borderRadius:14, boxShadow:'0 12px 32px rgba(0,0,0,.3)',
+          display:'flex', alignItems:'center', gap:12, maxWidth:'min(520px,92vw)', fontSize:13.5}}>
+          <span>⚠️ Something didn't save: {Store.syncError()}. This can happen if the database schema is out of date — try re-running supabase-schema.sql.</span>
+          <button className="btn btn-sm" style={{flexShrink:0, background:'transparent', color:'#FBE0DF', borderColor:'rgba(251,224,223,.4)'}} onClick={()=>Store.clearSyncError()}>Dismiss</button>
+        </div>
+      )}
     </>
   );
 };
