@@ -54,11 +54,12 @@ const Sidebar = ({ page, setPage, onCompose }) => {
     <nav className="nav">
       {NAV.filter(n => !n.admin || Store.isAdmin()).map(n => {
         const meta = n.id === 'admin' ? (Store.pendingCount() || null) : n.meta;
+        const quiet = n.id === 'notifs' && Store.isQuietNow();
         return (
         <button key={n.id} data-primary={n.primary ? '1' : undefined}
-          className={`nav-item ${page===n.id?'active':''}`} onClick={() => go(n.id)}>
+          className={`nav-item ${page===n.id?'active':''}`} onClick={() => go(n.id)} title={quiet ? 'Quiet hours — non-urgent notifications are muted' : undefined}>
           <Icon name={n.icon} className="nav-item-icon"/>
-          <span className="nav-label">{n.label}</span>
+          <span className="nav-label">{n.label}{quiet && <span style={{marginLeft:6, opacity:.7}}>🌙</span>}</span>
           {meta && <span className="nav-item-meta">{meta}</span>}
         </button>
         );
@@ -218,6 +219,9 @@ const App = () => {
   // A user's saved in-app theme (Store) takes precedence over the design-time Tweaks values,
   // so the picker in Settings works on the live site for everyone.
   const th = Store.theme();
+  const [, tick] = useStateApp(0);
+  useEffectApp(() => { const id = setInterval(() => tick(x => x + 1), 60000); return () => clearInterval(id); }, []);
+  const nightActive = Store.isNightShiftActive();
   useEffectApp(() => {
     const root = document.documentElement;
     const a = (th && th.accent) || (Array.isArray(t.accent) ? t.accent : ACCENT_PALETTES[0]);
@@ -229,7 +233,8 @@ const App = () => {
     root.style.setProperty('--font-body', f.body);
     root.style.setProperty('--font-display', f.display);
     document.body.setAttribute('data-density', (th && th.density) || t.density);
-  }, [t.accent, t.fontPair, t.density, th && th.accent && th.accent[0], th && th.fontPair, th && th.density]);
+    document.body.setAttribute('data-nightshift', nightActive ? '1' : '0');
+  }, [t.accent, t.fontPair, t.density, th && th.accent && th.accent[0], th && th.fontPair, th && th.density, nightActive]);
 
   useEffectApp(() => { setOnboarded(t.skipOnboarding); }, [t.skipOnboarding]);
 

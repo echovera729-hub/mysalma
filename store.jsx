@@ -16,6 +16,15 @@ const SUPA = (typeof window !== 'undefined' && window.SUPABASE_ENABLED === true 
 const LS_KEY = 'mysalma_v2';
 const PREF_KEY = 'mysalma_prefs'; // device-local prefs (saved posts), both modes
 
+const DEFAULT_SETTINGS = {
+  quietMode: true, pulse: true, kudosPublic: true, capsuleReminders: true,
+  nightShift: false, away: false, digest: false,
+  notifBrightSpots: true, notifMentions: true, notifEvents: true, notifSpotlight: true,
+  scheduleDays: 'Mon–Thu', scheduleStart: '07:00', scheduleEnd: '16:00',
+  profileVisibility: 'hospital', // 'hospital' | 'team'
+  winPhotoConsent: 'always', // 'always' | 'ask' | 'never'
+};
+
 let sb = null;
 let _meId = 'me';
 let _authed = !SUPA;        // local mode is always "authed"
@@ -26,7 +35,7 @@ const DEFAULT_PROFILE = {
   id: 'me', name: 'You', role: 'Team member', team: 'PT',
   tagline: 'new here — say hi 👋', bio: '', avatar: null, cover: null,
   status: 'approved', is_admin: false,
-  theme: {}, saved: {}, calendar_cover: null,
+  theme: {}, saved: {}, calendar_cover: null, settings: {},
 };
 
 // In-memory cache — identical shape in both modes.
@@ -233,6 +242,23 @@ const Store = {
   },
   myPosts() { return this.allPosts().filter(p => p.author === _meId); },
   crewPosts(crewId) { return this.allPosts().filter(p => p.crew_id === crewId); },
+  // Feed-visible posts: honors each person's "Public Bright Spots" setting and
+  // the viewer's own "Bright Spot notifications" mute — both are account-level.
+  feedPosts() {
+    const myBright = this.settings().notifBrightSpots;
+    return this.allPosts().filter(p => {
+      if (p.featured !== 'kudos') return true;
+      if (p.author === _meId) return true;
+      if (!myBright) return false; // you've muted Bright Spot posts in Settings
+      const names = p.kudos_names || p.kudosNames || [];
+      if (!names.length) return true;
+      const blocked = names.some(n => {
+        const person = (_state.profiles || []).find(pr => pr.name && pr.name.toLowerCase() === String(n).toLowerCase());
+        return person && person.settings && person.settings.kudosPublic === false;
+      });
+      return !blocked;
+    });
+  },
   addPost(post) {
     const id = newId('u');
     const row = {
@@ -466,10 +492,33 @@ const Store = {
     }
   },
 
+  // ---------- account settings (Shift & quiet hours, Notifications, Privacy) ----------
+  settings() { return { ...DEFAULT_SETTINGS, ...(this.profile().settings || {}) }; },
+  setSetting(patch) { this.setProfile({ settings: { ...this.settings(), ...patch } }); },
+  _scheduleMinutes(t) { const [h, m] = String(t || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0); },
+  isWithinSchedule() {
+    const s = this.settings();
+    const cur = new Date(); const now = cur.getHours() * 60 + cur.getMinutes();
+    const start = this._scheduleMinutes(s.scheduleStart), end = this._scheduleMinutes(s.scheduleEnd);
+    return start <= end ? (now >= start && now <= end) : (now >= start || now <= end);
+  },
+  isQuietNow() { const s = this.settings(); return !!s.quietMode && !s.away && this.isWithinSchedule(); },
+  isNightShiftActive() {
+    const s = this.settings();
+    if (!s.nightShift) return false;
+    const h = new Date().getHours();
+    return h >= 20 || h < 6;
+  },
+
   // ---------- teammates (approved members only) ----------
   teammates() {
+    const myTeam = this.profile().team;
     return (_state.profiles || [])
       .filter(p => p.id !== _meId && (p.status === 'approved' || p.status == null))
+      .filter(p => {
+        const vis = (p.settings && p.settings.profileVisibility) || 'hospital';
+        return vis === 'hospital' || p.team === myTeam;
+      })
       .map(personFor);
   },
 

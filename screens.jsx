@@ -200,9 +200,10 @@ const HomeScreen = ({ tweak, onCompose }) => {
     { id: 'team',     label: 'My team' },
     { id: 'bright',   label: 'Bright Spots' },
   ];
-  const all = Store.allPosts();
+  const all = Store.feedPosts();
   const meId = Store.meId();
   const followingIds = Store.followingIds();
+  const settings = Store.settings();
   const posts = all.filter(p => {
     if (feedTab === 'team')      return FIND(p.author)?.team === myTeam;
     if (feedTab === 'following') return followingIds.includes(p.author);
@@ -230,9 +231,23 @@ const HomeScreen = ({ tweak, onCompose }) => {
         </div>
       </div>
 
+      {settings.away && (
+        <div className="banner" style={{marginBottom:16}}>🌙 You're marked away today — Pulse and reminders are paused. Switch it off anytime in Settings.</div>
+      )}
+      {settings.digest && new Date().getDay() === 5 && (() => {
+        const weekAgo = Date.now() - 7*24*60*60*1000;
+        const weekPosts = Store.allPosts().filter(p => new Date(p.created_at).getTime() >= weekAgo);
+        const brightCount = weekPosts.filter(p => p.featured === 'kudos').length;
+        const upcoming = Store.events().filter(e => e.d).length;
+        return (
+          <div className="banner" style={{marginBottom:16, background:'var(--butter-soft)', borderColor:'#F0E5C0', color:'#8C6A1A'}}>
+            📬 Friday digest — {weekPosts.length} moment{weekPosts.length!==1?'s':''} shared this week, {brightCount} Bright Spot{brightCount!==1?'s':''}, {upcoming} event{upcoming!==1?'s':''} coming up.
+          </div>
+        );
+      })()}
       {tweak.showDigest && <div style={{marginBottom:16}}><TodayCard onCompose={onCompose} /></div>}
       {tweak.showDailyOne && <div style={{marginBottom:16}}><DailyOne /></div>}
-      {tweak.showPulse && <div style={{marginBottom:16}}><PulseCheckin /></div>}
+      {tweak.showPulse && settings.pulse && !settings.away && <div style={{marginBottom:16}}><PulseCheckin /></div>}
 
       <div style={{marginBottom:18}}>
         <Stories onCreate={onCompose} />
@@ -260,19 +275,23 @@ const HomeScreen = ({ tweak, onCompose }) => {
   );
 };
 
-const AuxRail = ({ tweak, go }) => (
+const AuxRail = ({ tweak, go }) => {
+  useStore();
+  const settings = Store.settings();
+  return (
   <>
-    {tweak.showSpotlight && <AuxSpotlight />}
-    {tweak.showPulse && <AuxPulse />}
-    <AuxEvents go={go} />
+    {tweak.showSpotlight && settings.notifSpotlight && <AuxSpotlight />}
+    {tweak.showPulse && settings.pulse && !settings.away && <AuxPulse />}
+    {settings.notifEvents && <AuxEvents go={go} />}
     {tweak.showCrews && <AuxCrews go={go} />}
-    {tweak.showCapsule && <AuxCapsule />}
+    {tweak.showCapsule && settings.capsuleReminders && !settings.away && <AuxCapsule />}
     <div style={{fontSize:11, color:'var(--ink-mute)', fontFamily:'var(--font-mono)', textAlign:'center', marginTop:20}}>
       Rehab.Wisal · internal team space<br/>
       made with 🫶
     </div>
   </>
-);
+  );
+};
 
 // ============================================================
 //  PROFILE

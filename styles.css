@@ -78,6 +78,24 @@
   --s-3: 14px; --s-4: 20px; --s-5: 26px; --s-6: 32px; --s-7: 44px;
 }
 
+/* Night-shift mode: auto dark theme, 8pm\u20136am, only when the user enables it in Settings */
+[data-nightshift="1"] {
+  --cream: #10182B; --cream-deep: #182238; --paper: #17203A;
+  --ink: #E7ECFA; --ink-soft: #A7B2CE; --ink-mute: #6E7A9C;
+  --line: #2A3552; --line-soft: #232D48;
+  --navy: #E7ECFA; --navy-soft: #C7D2EE;
+}
+[data-nightshift="1"] body {
+  background:
+    radial-gradient(1100px 620px at 100% -8%, rgba(43,163,154,.16) 0%, transparent 58%),
+    radial-gradient(760px 520px at -6% 104%, rgba(43,163,154,.08) 0%, transparent 52%),
+    var(--cream);
+}
+[data-nightshift="1"] .brand-name, [data-nightshift="1"] h1, [data-nightshift="1"] h2,
+[data-nightshift="1"] h3, [data-nightshift="1"] h4 { color: var(--ink); }
+[data-nightshift="1"] .btn { color: var(--ink); }
+[data-nightshift="1"] .btn-primary, [data-nightshift="1"] .btn-navy { color: white; }
+
 /* Density actually applied to layout (comfortable = the base rules above, unchanged) */
 [data-density="compact"] .main { padding: 20px 24px; }
 [data-density="spacious"] .main { padding: 34px 44px; }

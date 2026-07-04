@@ -15,6 +15,8 @@ const ComposerScreen = ({ onClose }) => {
   const [tag, setTag] = useS3('Calm under pressure');
   const [capsuleWhen, setCapsuleWhen] = useS3('1 year');
   const [busy, setBusy] = useS3(false);
+  const [winConsent, setWinConsent] = useS3(false);
+  const winPhotoConsent = Store.settings().winPhotoConsent;
   const fileRef = React.useRef(null);
   const addKudosName = (name) => { const n = (name != null ? name : kudosInput).trim(); if (n && !kudosTo.includes(n)) setKudosTo([...kudosTo, n]); setKudosInput(''); };
   const kudosSuggestions = kudosInput.trim()
@@ -31,7 +33,8 @@ const ComposerScreen = ({ onClose }) => {
     setBusy(false);
   };
 
-  const canPost = !!(body.trim() || photos.length || (type === 'kudos' && kudosTo.length));
+  const canPost = !!(body.trim() || photos.length || (type === 'kudos' && kudosTo.length)) &&
+    !(type === 'win' && photos.length > 0 && winPhotoConsent === 'ask' && !winConsent);
 
   const submit = () => {
     if (!canPost) return;
@@ -167,6 +170,13 @@ const ComposerScreen = ({ onClose }) => {
         {type === 'win' && (
           <div style={{padding:12, background:'var(--mint-soft)', border:'1px solid var(--mint)', borderRadius:14, marginBottom:14, fontSize:13, color:'var(--teal-deep)'}}>
             🌱 <strong>Patient win etiquette:</strong> use first initials only, confirm consent for any photos, and skip clinical details. The Win Wall is for celebrating, not charting.
+            {winPhotoConsent === 'never' && <div style={{marginTop:8, fontWeight:600}}>Photo uploads are turned off for Win Wall posts in your Settings.</div>}
+            {winPhotoConsent === 'ask' && photos.length > 0 && (
+              <label style={{display:'flex', alignItems:'center', gap:8, marginTop:10, fontWeight:600, cursor:'pointer'}}>
+                <input type="checkbox" checked={winConsent} onChange={e=>setWinConsent(e.target.checked)} />
+                I confirm I have consent to share this photo
+              </label>
+            )}
           </div>
         )}
 
@@ -207,9 +217,11 @@ const ComposerScreen = ({ onClose }) => {
         <div style={{display:'flex', alignItems:'center', gap:6, marginTop:14, padding:'10px 0', borderTop:'1px solid var(--line)', borderBottom:'1px solid var(--line)'}}>
           <input ref={fileRef} type="file" accept="image/*" multiple style={{display:'none'}}
             onChange={e => { addPhotos(e.target.files); e.target.value = ''; }} />
-          <button className="composer-action" style={{color:'var(--teal-deep)', cursor:'pointer', background:'transparent', border:0}} onClick={() => fileRef.current && fileRef.current.click()}>
-            <Icon name="image" size={16}/> Photo
-          </button>
+          {!(type === 'win' && winPhotoConsent === 'never') && (
+            <button className="composer-action" style={{color:'var(--teal-deep)', cursor:'pointer', background:'transparent', border:0}} onClick={() => fileRef.current && fileRef.current.click()}>
+              <Icon name="image" size={16}/> Photo
+            </button>
+          )}
           <button className="composer-action" style={{color:'#B86833', cursor:'pointer', background:'transparent', border:0}}>
             <Icon name="video" size={16}/> Video
           </button>
@@ -717,22 +729,14 @@ const OnboardingScreen = ({ onDone }) => {
 const SettingsScreen = ({ go }) => {
   useStore();
   const prof = Store.profile();
+  const settings = Store.settings();
   const [section, setSection] = useS3('account');
   const avRef = React.useRef(null);
   const setAvatar = async (file) => { try { Store.setProfile({ avatar: await readScaledImage(file, 512) }); } catch (e) {} };
-  const [toggles, setToggles] = useS3({
-    quietMode: true,
-    pulse: true,
-    capsule: true,
-    kudos: true,
-    digest: false,
-    nightShift: false,
-    away: false,
-  });
   const T = (k, txt, sub) => (
     <div className="settings-row">
       <div className="settings-row-info"><h4>{txt}</h4><p>{sub}</p></div>
-      <div className={`toggle ${toggles[k]?'on':''}`} onClick={() => setToggles(t => ({...t, [k]:!t[k]}))}></div>
+      <div className={`toggle ${settings[k]?'on':''}`} onClick={() => Store.setSetting({ [k]: !settings[k] })}></div>
     </div>
   );
 
@@ -813,27 +817,51 @@ const SettingsScreen = ({ go }) => {
             <h3 style={{fontSize:20, marginBottom:18}}>Privacy & Pulse</h3>
             <div className="banner" style={{marginBottom:18}}>🔒 Rehab.Wisal is internal-only. Nothing here is indexed publicly or shared with outside services.</div>
             {T('pulse', 'Daily Pulse check-ins', 'Show me the mood prompt at the start of each shift')}
-            {T('kudos', 'Public Bright Spots', "Allow coworkers to send me kudos publicly. (Private ones still work.)")}
-            {T('capsule', 'Time Capsule reminders', 'Email me when a sealed capsule is about to open')}
-            <div className="settings-row"><div><h4>Profile visibility</h4><p>Who can find me in search</p></div><span className="pill pill-teal">Whole hospital</span></div>
-            <div className="settings-row"><div><h4>Patient win photos</h4><p>Default consent prompt for any Win Wall posts</p></div><span className="pill">Always ask</span></div>
+            {T('kudosPublic', 'Public Bright Spots', "Allow coworkers to send me kudos publicly. When off, Bright Spots naming you are hidden from the main feed.")}
+            {T('capsuleReminders', 'Time Capsule reminders', 'Show the sealed-capsule reminder card on Home')}
+            <div className="settings-row">
+              <div className="settings-row-info"><h4>Profile visibility</h4><p>Who can find you in Discover, chat, and crew invites</p></div>
+              <select className="input" style={{maxWidth:200}} value={settings.profileVisibility} onChange={e=>Store.setSetting({profileVisibility:e.target.value})}>
+                <option value="hospital">Whole hospital</option>
+                <option value="team">My team only</option>
+              </select>
+            </div>
+            <div className="settings-row">
+              <div className="settings-row-info"><h4>Patient win photos</h4><p>Default consent handling for any Win Wall photo uploads</p></div>
+              <select className="input" style={{maxWidth:200}} value={settings.winPhotoConsent} onChange={e=>Store.setSetting({winPhotoConsent:e.target.value})}>
+                <option value="always">Always ask</option>
+                <option value="ask">Confirm before posting</option>
+                <option value="never">Never allow photos</option>
+              </select>
+            </div>
           </>)}
 
           {section === 'shift' && (<>
             <h3 style={{fontSize:20, marginBottom:18}}>Shift & quiet hours</h3>
-            {T('quietMode','Quiet during shift', "Mute non-urgent notifications when I'm clocked in")}
-            {T('nightShift','Night-shift mode', 'Auto dark mode + softer pings between 8pm and 6am')}
-            {T('away','Away today', "I'm off — pause Pulse, Bright Spot reminders, and group pings")}
-            <div className="settings-row"><div><h4>My usual schedule</h4><p>Helps the app know when to nudge gently</p></div><span>Mon–Thu · 7am–4pm</span></div>
+            {T('quietMode','Quiet during shift', "Mute non-urgent notifications when I'm clocked in (shows a 🌙 next to Notifications in the sidebar)")}
+            {T('nightShift','Night-shift mode', 'Auto dark mode between 8pm and 6am, right now: ' + (Store.isNightShiftActive() ? 'active 🌙' : 'not active') )}
+            {T('away','Away today', "I'm off — pause Pulse, Time Capsule reminders, and event reminders")}
+            <div className="settings-row">
+              <div className="settings-row-info"><h4>My usual schedule</h4><p>Sets the window Quiet mode treats as "on shift"</p></div>
+              <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                <input className="input" style={{width:110}} value={settings.scheduleDays} onChange={e=>Store.setSetting({scheduleDays:e.target.value})} placeholder="Mon–Thu" />
+                <input className="input" type="time" style={{width:110}} value={settings.scheduleStart} onChange={e=>Store.setSetting({scheduleStart:e.target.value})} />
+                <span style={{color:'var(--ink-soft)'}}>–</span>
+                <input className="input" type="time" style={{width:110}} value={settings.scheduleEnd} onChange={e=>Store.setSetting({scheduleEnd:e.target.value})} />
+              </div>
+            </div>
+            {settings.quietMode && (
+              <div className="banner" style={{marginTop:4}}>{Store.isQuietNow() ? '🌙 Quiet hours are active right now.' : `Quiet hours run ${settings.scheduleDays} · ${settings.scheduleStart}–${settings.scheduleEnd}`}</div>
+            )}
           </>)}
 
           {section === 'notifs' && (<>
             <h3 style={{fontSize:20, marginBottom:18}}>Notifications</h3>
-            {T('digest', 'Weekly Friday digest', 'A wrap-up of the best moments + Win Wall posts')}
-            <div className="settings-row"><div><h4>Bright Spots</h4></div><span>In-app + email</span></div>
-            <div className="settings-row"><div><h4>Mentions</h4></div><span>In-app</span></div>
-            <div className="settings-row"><div><h4>Events</h4></div><span>In-app · 1 day before</span></div>
-            <div className="settings-row"><div><h4>Spotlight nomination</h4></div><span>In-app + email</span></div>
+            {T('digest', 'Weekly Friday digest', 'A wrap-up banner on Home with the week\'s moments, Bright Spots & events (shows Fridays)')}
+            {T('notifBrightSpots', 'Bright Spots', 'Show Bright Spot posts (kudos for coworkers) in your feed')}
+            {T('notifMentions', 'Mentions', 'Highlight posts where someone @mentions you')}
+            {T('notifEvents', 'Events', 'Show the "Coming up" events widget in your sidebar')}
+            {T('notifSpotlight', 'Spotlight nomination', 'Show the weekly Spotlight widget in your sidebar')}
           </>)}
 
           {section === 'appearance' && (() => {

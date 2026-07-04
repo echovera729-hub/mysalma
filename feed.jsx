@@ -37,6 +37,9 @@ const Post = ({ post }) => {
   if (post.featured === 'soft')  wrapStyle = { background: 'linear-gradient(135deg, var(--blush-soft) 0%, #FFF8F7 70%)', borderColor: 'var(--blush)' };
 
   const sendComment = () => { if (draft.trim()) { Store.addComment(id, draft.trim()); setDraft(''); } };
+  const myFirst = Store.profile().name.split(/\s+/)[0];
+  const mentionsMe = Store.settings().notifMentions && post.body && !isMine &&
+    new RegExp('@' + myFirst.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(post.body);
 
   return (
     <article className="post" style={wrapStyle}>
@@ -51,6 +54,7 @@ const Post = ({ post }) => {
             {post.featured === 'win' && <><span className="dot"></span><span style={{color:'var(--teal-deep)', fontWeight:600}}>✦ Win Wall</span></>}
             {post.featured === 'kudos' && <><span className="dot"></span><span style={{color:'#8C6A1A', fontWeight:600}}>✦ Bright Spot</span></>}
             {post.capsule && <><span className="dot"></span><span style={{color:'#524FA3', fontWeight:600}}>⏳ Capsule · {post.capsule}</span></>}
+            {mentionsMe && <><span className="dot"></span><span style={{color:'var(--teal-deep)', fontWeight:600}}>🔔 You were mentioned</span></>}
           </div>
         </div>
         <div style={{position:'relative'}}>
