@@ -26,6 +26,7 @@ const DEFAULT_PROFILE = {
   id: 'me', name: 'You', role: 'Team member', team: 'PT',
   tagline: 'new here — say hi 👋', bio: '', avatar: null, cover: null,
   status: 'approved', is_admin: false,
+  theme: {}, saved: {}, calendar_cover: null,
 };
 
 // In-memory cache — identical shape in both modes.
@@ -68,7 +69,7 @@ function persistLocal() {
   if (SUPA) return;
   try { localStorage.setItem(LS_KEY, JSON.stringify(_state)); }
   catch (e) {
-    if (String(e).match(/quota/i)) alert("MySalma's local storage is full — try removing a post with large photos.");
+    if (String(e).match(/quota/i)) alert("Rehab.Wisal's local storage is full — try removing a post with large photos.");
   }
 }
 function loadPrefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY)) || { saved: {}, theme: {} }; } catch (e) { return { saved: {}, theme: {} }; } }
@@ -153,7 +154,7 @@ function cacheRemove(table, pred) { _state[table] = (_state[table] || []).filter
 function mutate(localChange, remote) {
   localChange();
   _emit();
-  if (SUPA && remote) { Promise.resolve(remote()).catch(err => { console.error('[MySalma] sync error', err); scheduleReload(); }); }
+  if (SUPA && remote) { Promise.resolve(remote()).catch(err => { console.error('[Rehab.Wisal] sync error', err); scheduleReload(); }); }
   else persistLocal();
 }
 
@@ -278,14 +279,18 @@ const Store = {
     mutate(() => cacheInsert('comments', row), () => sb.from('comments').insert(row));
   },
 
-  // ---------- saved (device-local in both modes) ----------
-  isSaved(id) { return !!(_prefs.saved || {})[id]; },
-  toggleSave(id) { _prefs.saved = { ...(_prefs.saved || {}), [id]: !(_prefs.saved || {})[id] }; persistPrefs(); _emit(); },
+  // ---------- saved (account-level — synced via profile) ----------
+  isSaved(id) { return !!(this.profile().saved || {})[id]; },
+  toggleSave(id) {
+    const saved = { ...(this.profile().saved || {}) };
+    if (saved[id]) delete saved[id]; else saved[id] = true;
+    this.setProfile({ saved });
+  },
 
-  // ---------- appearance theme (device-local, works on the live site) ----------
-  theme() { return _prefs.theme || {}; },
-  setTheme(patch) { _prefs.theme = { ...(_prefs.theme || {}), ...patch }; persistPrefs(); _emit(); },
-  resetTheme() { _prefs.theme = {}; persistPrefs(); _emit(); },
+  // ---------- appearance theme (account-level — synced via profile) ----------
+  theme() { return this.profile().theme || {}; },
+  setTheme(patch) { this.setProfile({ theme: { ...(this.profile().theme || {}), ...patch } }); },
+  resetTheme() { this.setProfile({ theme: {} }); },
 
   // ---------- mood + daily ----------
   moodToday() { const r = (_state.moods || []).find(m => m.user_id === _meId && m.day === dayKey()); return r ? r.mood : null; },
@@ -581,18 +586,18 @@ const Store = {
     mutate(() => cacheInsert('nominations', row), () => sb.from('nominations').insert(row));
   },
 
-  // ---------- calendar cover (device-local, like theme) ----------
-  calendarCover() { return (_prefs.calendarCover) || null; },
-  setCalendarCover(dataUrl) { _prefs.calendarCover = dataUrl; persistPrefs(); _emit(); },
-  clearCalendarCover() { _prefs.calendarCover = null; persistPrefs(); _emit(); },
+  // ---------- calendar cover (account-level — synced via profile) ----------
+  calendarCover() { return this.profile().calendar_cover || null; },
+  setCalendarCover(dataUrl) { this.setProfile({ calendar_cover: dataUrl }); },
+  clearCalendarCover() { this.setProfile({ calendar_cover: null }); },
 
   // ---------- danger zone ----------
   reset() {
     if (SUPA) {
-      if (confirm('Sign out of MySalma on this device?')) this.signOut();
+      if (confirm('Sign out of Rehab.Wisal on this device?')) this.signOut();
       return;
     }
-    if (confirm('Reset MySalma? This clears all your posts, reactions, photos and profile changes on this device.')) {
+    if (confirm('Reset Rehab.Wisal? This clears all your posts, reactions, photos and profile changes on this device.')) {
       localStorage.removeItem(LS_KEY); localStorage.removeItem(PREF_KEY); location.reload();
     }
   },
