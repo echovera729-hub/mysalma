@@ -300,7 +300,7 @@ const ShiftScreen = () => {
           <div className="card card-pad" style={{textAlign:'center', padding:32, background:'linear-gradient(135deg, var(--peach-soft) 0%, var(--butter-soft) 100%)', border:'none'}}>
             <div style={{fontSize:48}}>🍜</div>
             <h2 style={{fontSize:24, marginTop:8}}>Don't eat alone today</h2>
-            <p style={{color:'var(--ink-soft)', fontSize:14, maxWidth:400, margin:'8px auto 0'}}>Set yourself "on break" and Lunch Roulette will match you with whoever else is free — so no one eats alone. Live matching turns on once your team's on MySalma.</p>
+            <p style={{color:'var(--ink-soft)', fontSize:14, maxWidth:400, margin:'8px auto 0'}}>Set yourself "on break" and Lunch Roulette will match you with whoever else is free — so no one eats alone. Live matching turns on once your team's on Rehab.Wisal.</p>
             <button className="btn btn-primary" style={{padding:'12px 28px', marginTop:18}}>🎲 I'm free for lunch</button>
             <div style={{fontSize:12, color:'var(--ink-soft)', marginTop:12}}>Cafeteria · OT Lounge · Courtyard</div>
           </div>
