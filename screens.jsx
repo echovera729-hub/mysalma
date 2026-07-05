@@ -431,9 +431,30 @@ const ProfileScreen = () => {
         <div>
           <div className="card card-pad">
             <h3 style={{fontSize:16, marginBottom:10}}>Coworkers</h3>
-            <p style={{fontSize:13, color:'var(--ink-soft)', margin:0, lineHeight:1.5}}>
-              Your team and connections will appear here once your hospital is set up on Rehab.Wisal.
-            </p>
+            {(() => {
+              const mates = Store.teammates();
+              if (mates.length === 0) {
+                return (
+                  <p style={{fontSize:13, color:'var(--ink-soft)', margin:0, lineHeight:1.5}}>
+                    Your team and connections will appear here once your hospital is set up on Rehab.Wisal.
+                  </p>
+                );
+              }
+              return (
+                <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                  {mates.slice(0, 6).map(m => (
+                    <div key={m.id} style={{display:'flex', alignItems:'center', gap:10}}>
+                      <Avatar person={m} size="sm" />
+                      <div style={{minWidth:0}}>
+                        <div style={{fontWeight:600, fontSize:13.5, color:'var(--navy)'}}>{m.name}</div>
+                        <div style={{fontSize:11.5, color:'var(--ink-soft)'}}>{m.role || (TEAMS[m.team]||{}).label}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {mates.length > 6 && <div style={{fontSize:12, color:'var(--ink-soft)'}}>+{mates.length - 6} more</div>}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

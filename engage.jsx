@@ -94,7 +94,7 @@ const TodayCard = ({ onCompose }) => {
             : <>Your hospital's space is a blank canvas. Share the first moment to get things going.</>}
         </div>
       </div>
-      <button className="btn btn-sm btn-primary" onClick={onCompose} style={{flexShrink:0}}>Share something</button>
+      <button className="btn btn-sm btn-primary" onClick={()=>onCompose()} style={{flexShrink:0}}>Share something</button>
     </div>
   );
 };
@@ -164,6 +164,7 @@ const ShiftScreen = () => {
   useStore();
   const [tab, setTab] = useEng('now');
   const [posting, setPosting] = useEng(false);
+  const [swapFilter, setSwapFilter] = useEng('All teams');
   const prof = Store.profile();
   const me = currentUser();
   const swaps = Store.swaps();
@@ -188,9 +189,32 @@ const ShiftScreen = () => {
       {tab === 'now' && (() => {
         const mates = Store.teammates();
         const total = mates.length + 1;
+        const myStatus = prof.shiftStatus || 'floor';
+        const myFloor = prof.floor || '';
+        const people = [{ id: 'me', shiftStatus: myStatus, floor: myFloor }, ...mates];
+        const onBreak = people.filter(p => p.shiftStatus === 'break').length;
+        const arriving = people.filter(p => p.shiftStatus === 'arriving').length;
+        const floorsActive = new Set(people.filter(p => p.floor).map(p => p.floor)).size;
         return (<>
+        <div className="card card-pad" style={{display:'flex', alignItems:'center', gap:14, flexWrap:'wrap', marginBottom:18}}>
+          <span style={{fontSize:12.5, fontWeight:600, color:'var(--ink-soft)'}}>Your status:</span>
+          <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+            {['floor','break','arriving'].map(k => {
+              const meta = STATUS_META[k];
+              const on = myStatus === k;
+              return (
+                <button key={k} onClick={()=>Store.setProfile({shiftStatus:k})} className={`pill ${on ? meta.pill : ''}`}
+                  style={{cursor:'pointer', border: on ? '1.5px solid currentColor' : '1.5px solid var(--line)'}}>{meta.emoji ? meta.emoji+' ' : ''}{meta.label}</button>
+              );
+            })}
+          </div>
+          <select className="input" style={{maxWidth:160}} value={myFloor} onChange={e=>Store.setProfile({floor:e.target.value || null})}>
+            <option value="">Which floor?</option>
+            {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        </div>
         <div style={{display:'flex', gap:12, marginBottom:18, flexWrap:'wrap'}}>
-          {[['👥', total, 'on the team', 'var(--teal-tint)'], ['☕', 0, 'on break', 'var(--butter-soft)'], ['🚪', 0, 'just arriving', 'var(--slate-tint)'], ['🏥', 1, 'floors active', 'var(--mint-soft)']].map(([e,n,l,bg],i)=>(
+          {[['👥', total, 'on the team', 'var(--teal-tint)'], ['☕', onBreak, 'on break', 'var(--butter-soft)'], ['🚪', arriving, 'just arriving', 'var(--slate-tint)'], ['🏥', floorsActive, 'floors active', 'var(--mint-soft)']].map(([e,n,l,bg],i)=>(
             <div key={i} className="card" style={{flex:1, minWidth:130, padding:'14px 16px', display:'flex', alignItems:'center', gap:12, background:bg, border:'none'}}>
               <span style={{fontSize:24}}>{e}</span>
               <div><div style={{fontFamily:'var(--font-display)', fontSize:24, fontWeight:700, color:'var(--navy)', lineHeight:1}}>{n}</div><div style={{fontSize:12, color:'var(--ink-soft)'}}>{l}</div></div>
@@ -207,46 +231,56 @@ const ShiftScreen = () => {
             <Avatar person="me" size="md" status="online" />
             <div style={{flex:1, minWidth:0}}>
               <div style={{fontWeight:600, fontSize:14, color:'var(--navy)'}}>{me.name} <span style={{fontWeight:400, color:'var(--ink-mute)', fontSize:12}}>· you</span></div>
-              <div style={{fontSize:12, color:'var(--ink-soft)'}}>{me.role}</div>
+              <div style={{fontSize:12, color:'var(--ink-soft)'}}>{me.role}{myFloor ? ' · '+myFloor : ''}</div>
             </div>
-            <span className="pill pill-teal" style={{fontSize:11}}>You</span>
+            <span className={`pill ${STATUS_META[myStatus].pill}`} style={{fontSize:11}}>{STATUS_META[myStatus].emoji} {STATUS_META[myStatus].label}</span>
           </div>
           {mates.map(p => (
             <div key={p.id} className="card" style={{padding:'12px 14px', display:'flex', alignItems:'center', gap:12}}>
               <Avatar person={p} size="md" status="online" />
               <div style={{flex:1, minWidth:0}}>
                 <div style={{fontWeight:600, fontSize:14, color:'var(--navy)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.name}</div>
-                <div style={{fontSize:12, color:'var(--ink-soft)'}}>{p.role || (TEAMS[p.team]||{}).label}</div>
+                <div style={{fontSize:12, color:'var(--ink-soft)'}}>{p.role || (TEAMS[p.team]||{}).label}{p.floor ? ' · '+p.floor : ''}</div>
               </div>
-              <TeamPill team={p.team} mini />
+              <span className={`pill ${STATUS_META[p.shiftStatus || 'floor'].pill}`} style={{fontSize:11}}>{STATUS_META[p.shiftStatus || 'floor'].emoji}</span>
             </div>
           ))}
         </div>
         {mates.length === 0 && (
           <div style={{marginTop:18}}>
             <EmptyState emoji="🏥" title="Your teammates will show up here"
-              sub="As coworkers join MySalma they appear on this roster. With the live backend connected, this updates in real time as people sign in." />
+              sub="As coworkers join Rehab.Wisal they appear on this roster. With the live backend connected, this updates in real time as people sign in." />
           </div>
         )}
       </>); })()}
 
-      {tab === 'swap' && (<>
+      {tab === 'swap' && (() => {
+        const myTeam = prof.team || 'PT';
+        const filters = ['All teams','My team','Needs cover','This week'];
+        const weekAgo = Date.now() - 7*24*60*60*1000;
+        const filteredSwaps = swaps.filter(s => {
+          if (swapFilter === 'My team') return s.team === myTeam;
+          if (swapFilter === 'Needs cover') return s.urgency === 'high';
+          if (swapFilter === 'This week') return new Date(s.created_at).getTime() >= weekAgo;
+          return true;
+        });
+        return (<>
         <div className="banner" style={{marginBottom:16}}>
           🔄 <span><strong>Swap board</strong> — post a shift you need covered, or pick up one of someone else's. All swaps need charge-nurse sign-off before they're final.</span>
         </div>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14, flexWrap:'wrap', gap:10}}>
           <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-            {['All teams','My team','Needs cover','This week'].map((c,i)=><span key={c} className={`pill ${i===0?'pill-teal':''}`} style={{cursor:'pointer'}}>{c}</span>)}
+            {filters.map((c)=><span key={c} onClick={()=>setSwapFilter(c)} className={`pill ${swapFilter===c?'pill-teal':''}`} style={{cursor:'pointer'}}>{c}</span>)}
           </div>
           <button className="btn btn-primary" onClick={()=>setPosting(true)}><Icon name="plus" size={16}/> Post a swap</button>
         </div>
-        {swaps.length === 0 ? (
-          <EmptyState emoji="🔄" title="No open swaps right now"
-            sub="Need a shift covered? Post it here and the right person can pick it up — no more group-text chaos."
+        {filteredSwaps.length === 0 ? (
+          <EmptyState emoji="🔄" title={swaps.length === 0 ? "No open swaps right now" : "No swaps match this filter"}
+            sub={swaps.length === 0 ? "Need a shift covered? Post it here and the right person can pick it up — no more group-text chaos." : "Try a different filter, or post a new swap."}
             action="Post a swap" onAction={()=>setPosting(true)} />
         ) : (
           <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:14}}>
-            {swaps.map((s) => {
+            {filteredSwaps.map((s) => {
               const u = URGENCY[s.urgency] || URGENCY.med;
               const covered = Store.isCovered(s.id);
               const mine = s.by === Store.meId() || s.by === 'me';
@@ -293,19 +327,42 @@ const ShiftScreen = () => {
           </div>
         )}
         {posting && <SwapForm onClose={()=>setPosting(false)} />}
-      </>)}
+      </>); })()}
 
-      {tab === 'lunch' && (
+      {tab === 'lunch' && (() => {
+        const free = prof.shiftStatus === 'break';
+        const otherFree = Store.teammates().filter(p => p.shiftStatus === 'break');
+        return (
         <div style={{maxWidth:560}}>
           <div className="card card-pad" style={{textAlign:'center', padding:32, background:'linear-gradient(135deg, var(--peach-soft) 0%, var(--butter-soft) 100%)', border:'none'}}>
             <div style={{fontSize:48}}>🍜</div>
             <h2 style={{fontSize:24, marginTop:8}}>Don't eat alone today</h2>
-            <p style={{color:'var(--ink-soft)', fontSize:14, maxWidth:400, margin:'8px auto 0'}}>Set yourself "on break" and Lunch Roulette will match you with whoever else is free — so no one eats alone. Live matching turns on once your team's on Rehab.Wisal.</p>
-            <button className="btn btn-primary" style={{padding:'12px 28px', marginTop:18}}>🎲 I'm free for lunch</button>
+            <p style={{color:'var(--ink-soft)', fontSize:14, maxWidth:400, margin:'8px auto 0'}}>Set yourself "on break" and Lunch Roulette will match you with whoever else is free — so no one eats alone.</p>
+            <button className={`btn ${free ? '' : 'btn-primary'}`} style={{padding:'12px 28px', marginTop:18}}
+              onClick={()=>Store.setProfile({shiftStatus: free ? 'floor' : 'break'})}>
+              {free ? '✓ You\'re marked free' : '🎲 I\'m free for lunch'}
+            </button>
             <div style={{fontSize:12, color:'var(--ink-soft)', marginTop:12}}>Cafeteria · OT Lounge · Courtyard</div>
           </div>
+          {free && (
+            <div className="card card-pad" style={{marginTop:16}}>
+              {otherFree.length === 0 ? (
+                <div style={{textAlign:'center', color:'var(--ink-soft)', fontSize:13.5}}>No one else is free right now — you'll be matched the moment a teammate joins you on break. 🍽️</div>
+              ) : (
+                <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                  <div style={{fontSize:12.5, fontWeight:600, color:'var(--ink-soft)'}}>Free right now too:</div>
+                  {otherFree.map(p => (
+                    <div key={p.id} style={{display:'flex', alignItems:'center', gap:10}}>
+                      <Avatar person={p} size="sm" />
+                      <span style={{fontSize:13.5, fontWeight:600, color:'var(--navy)'}}>{p.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
-      )}
+        ); })()}
     </>
   );
 };

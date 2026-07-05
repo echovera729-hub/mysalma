@@ -63,11 +63,14 @@ const STORIES = [];
 // Status groupings for the On-Shift roster (config).
 const STATUS_META = {
   charge:   { label: 'Charge / Lead', dot: 'var(--peach)',     pill: 'pill-peach' },
-  floor:    { label: 'On the floor',  dot: 'var(--teal)',      pill: 'pill-teal' },
-  break:    { label: 'On break',      dot: 'var(--butter)',    pill: 'pill-butter' },
-  arriving: { label: 'Just arriving', dot: 'var(--slate)',     pill: 'pill-slate' },
+  floor:    { label: 'On the floor',  dot: 'var(--teal)',      pill: 'pill-teal',   emoji: '🟢' },
+  break:    { label: 'On break',      dot: 'var(--butter)',    pill: 'pill-butter', emoji: '☕' },
+  arriving: { label: 'Just arriving', dot: 'var(--slate)',     pill: 'pill-slate',  emoji: '🚪' },
   leaving:  { label: 'Heading out',   dot: 'var(--slate-soft)', pill: 'pill-slate' },
 };
+
+// Floor / unit options for the shift-status picker (config).
+const FLOORS = ['Floor 1', 'Floor 2', 'Floor 3', 'ER', 'Outpatient', 'Admin'];
 const URGENCY = {
   high: { label: 'Needs cover',    cls: 'pill-blush' },
   med:  { label: 'Hoping to swap', cls: 'pill-butter' },
@@ -90,5 +93,5 @@ const EVENT_COLORS = ['peach','mint','lavender','butter','navy'];
 
 Object.assign(window, {
   TEAMS, FIND, currentUser, MOODS, DAILY_PROMPTS, POSTS, STORIES,
-  STATUS_META, URGENCY, CREW_IDEAS, EVENT_COLORS,
+  STATUS_META, URGENCY, CREW_IDEAS, EVENT_COLORS, FLOORS,
 });

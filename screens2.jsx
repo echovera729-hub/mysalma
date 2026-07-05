@@ -5,8 +5,8 @@ const { useState: useS3 } = React;
 // ============================================================
 //  COMPOSER (modal-style screen)
 // ============================================================
-const ComposerScreen = ({ onClose }) => {
-  const [type, setType] = useS3('moment'); // moment | kudos | win | capsule | watch
+const ComposerScreen = ({ onClose, initialType }) => {
+  const [type, setType] = useS3(initialType || 'moment'); // moment | kudos | win | capsule | watch
   const [body, setBody] = useS3('');
   const [photos, setPhotos] = useS3([]); // [{ src }]
   const [kudosTo, setKudosTo] = useS3([]); // typed/tagged names
@@ -16,8 +16,19 @@ const ComposerScreen = ({ onClose }) => {
   const [capsuleWhen, setCapsuleWhen] = useS3('1 year');
   const [busy, setBusy] = useS3(false);
   const [winConsent, setWinConsent] = useS3(false);
+  const [watchLink, setWatchLink] = useS3('');
+  const [showVideo, setShowVideo] = useS3(false);
+  const [videoUrl, setVideoUrl] = useS3('');
+  const [showPoll, setShowPoll] = useS3(false);
+  const [pollQ, setPollQ] = useS3('');
+  const [pollOpts, setPollOpts] = useS3(['', '']);
+  const [showPlace, setShowPlace] = useS3(false);
+  const [place, setPlace] = useS3('');
+  const [showMood, setShowMood] = useS3(false);
+  const [moodTag, setMoodTag] = useS3(null);
   const winPhotoConsent = Store.settings().winPhotoConsent;
   const fileRef = React.useRef(null);
+  const validPollOpts = pollOpts.map(o=>o.trim()).filter(Boolean);
   const addKudosName = (name) => { const n = (name != null ? name : kudosInput).trim(); if (n && !kudosTo.includes(n)) setKudosTo([...kudosTo, n]); setKudosInput(''); };
   const kudosSuggestions = kudosInput.trim()
     ? Store.teammates().filter(m => !kudosTo.includes(m.name) && m.name.toLowerCase().includes(kudosInput.trim().toLowerCase())).slice(0, 5)
@@ -33,7 +44,7 @@ const ComposerScreen = ({ onClose }) => {
     setBusy(false);
   };
 
-  const canPost = !!(body.trim() || photos.length || (type === 'kudos' && kudosTo.length)) &&
+  const canPost = !!(body.trim() || photos.length || (type === 'kudos' && kudosTo.length) || videoUrl.trim() || (showPoll && pollQ.trim() && validPollOpts.length >= 2) || place.trim() || moodTag || (type === 'watch' && watchLink.trim())) &&
     !(type === 'win' && photos.length > 0 && winPhotoConsent === 'ask' && !winConsent);
 
   const submit = () => {
@@ -45,6 +56,11 @@ const ComposerScreen = ({ onClose }) => {
     }
     if (type === 'win') base.featured = 'win';
     if (type === 'capsule') base.capsule = capsuleWhen;
+    if (type === 'watch' && watchLink.trim()) base.videoUrl = watchLink.trim();
+    if (videoUrl.trim()) base.videoUrl = videoUrl.trim();
+    if (showPoll && pollQ.trim() && validPollOpts.length >= 2) base.poll = { question: pollQ.trim(), options: validPollOpts.map(text => ({ text, votes: [] })) };
+    if (place.trim()) base.place = place.trim();
+    if (moodTag) base.moodTag = moodTag;
     Store.addPost(base);
     onClose();
   };
@@ -182,10 +198,61 @@ const ComposerScreen = ({ onClose }) => {
 
         {type === 'watch' && (
           <div className="watch-card" style={{marginBottom:14}}>
-            <span className="watch-live">SETTING UP</span>
+            <span className="watch-live">{watchLink.trim() ? 'READY' : 'SETTING UP'}</span>
             <h3 style={{color:'white', marginTop:10, fontSize:20}}>Watch Party</h3>
             <p style={{margin:'6px 0 0', opacity:.85, fontSize:13.5}}>Drop a link (Youtube, internal training, podcast) — everyone in the room watches in sync.</p>
-            <input className="input" placeholder="paste link…" style={{marginTop:12, background:'rgba(255,255,255,.1)', color:'white', border:'1px solid rgba(255,255,255,.2)'}} />
+            <input className="input" placeholder="paste link…" value={watchLink} onChange={e=>setWatchLink(e.target.value)} style={{marginTop:12, background:'rgba(255,255,255,.1)', color:'white', border:'1px solid rgba(255,255,255,.2)'}} />
+          </div>
+        )}
+
+        {showVideo && (
+          <div style={{padding:14, background:'var(--peach-soft)', border:'1px solid #F3D7BA', borderRadius:14, marginBottom:14}}>
+            <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'#8C5A2E', marginBottom:6}}>Video link</label>
+            <div style={{display:'flex', gap:8}}>
+              <input className="input" value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder="paste a video link…" style={{flex:1}} />
+              <button className="btn btn-sm btn-ghost" onClick={()=>{setVideoUrl(''); setShowVideo(false);}}>Remove</button>
+            </div>
+          </div>
+        )}
+
+        {showPoll && (
+          <div style={{padding:14, background:'#F1EEFA', border:'1px solid var(--lavender)', borderRadius:14, marginBottom:14}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}>
+              <label style={{fontSize:12.5, fontWeight:600, color:'#524FA3'}}>Poll question</label>
+              <button className="btn btn-sm btn-ghost" onClick={()=>{setShowPoll(false); setPollQ(''); setPollOpts(['','']);}}>Remove</button>
+            </div>
+            <input className="input" value={pollQ} onChange={e=>setPollQ(e.target.value)} placeholder="Ask the team something…" style={{marginBottom:10}} />
+            {pollOpts.map((o, i) => (
+              <div key={i} style={{display:'flex', gap:8, marginBottom:8}}>
+                <input className="input" value={o} onChange={e=>setPollOpts(opts=>opts.map((x,j)=>j===i?e.target.value:x))} placeholder={`Option ${i+1}`} />
+                {pollOpts.length > 2 && <button className="btn btn-sm btn-ghost" onClick={()=>setPollOpts(opts=>opts.filter((_,j)=>j!==i))}>×</button>}
+              </div>
+            ))}
+            {pollOpts.length < 4 && <button className="btn btn-sm" onClick={()=>setPollOpts(opts=>[...opts, ''])}>+ Add option</button>}
+          </div>
+        )}
+
+        {showPlace && (
+          <div style={{padding:14, background:'var(--cream)', border:'1px solid var(--line)', borderRadius:14, marginBottom:14}}>
+            <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Place</label>
+            <div style={{display:'flex', gap:8}}>
+              <input className="input" value={place} onChange={e=>setPlace(e.target.value)} placeholder="e.g. Staff Lounge" style={{flex:1}} />
+              <button className="btn btn-sm btn-ghost" onClick={()=>{setPlace(''); setShowPlace(false);}}>Remove</button>
+            </div>
+          </div>
+        )}
+
+        {showMood && (
+          <div style={{padding:14, background:'var(--butter-soft)', border:'1px solid #F0E5C0', borderRadius:14, marginBottom:14}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}>
+              <label style={{fontSize:12.5, fontWeight:600, color:'#8C6A1A'}}>Tag a mood</label>
+              <button className="btn btn-sm btn-ghost" onClick={()=>{setMoodTag(null); setShowMood(false);}}>Remove</button>
+            </div>
+            <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+              {MOODS.map(m => (
+                <button key={m.id} onClick={()=>setMoodTag(m.id)} className={`pill ${moodTag===m.id?'pill-butter':''}`} style={{cursor:'pointer', border: moodTag===m.id?'1.5px solid #8C6A1A':'1.5px solid var(--line)'}}>{m.emoji} {m.label}</button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -222,16 +289,16 @@ const ComposerScreen = ({ onClose }) => {
               <Icon name="image" size={16}/> Photo
             </button>
           )}
-          <button className="composer-action" style={{color:'#B86833', cursor:'pointer', background:'transparent', border:0}}>
+          <button className="composer-action" style={{color:'#B86833', cursor:'pointer', background: showVideo?'var(--peach-soft)':'transparent', border:0, borderRadius:8}} onClick={() => setShowVideo(v => !v)}>
             <Icon name="video" size={16}/> Video
           </button>
-          <button className="composer-action" style={{color:'#524FA3', cursor:'pointer', background:'transparent', border:0}}>
+          <button className="composer-action" style={{color:'#524FA3', cursor:'pointer', background: showPoll?'#F1EEFA':'transparent', border:0, borderRadius:8}} onClick={() => setShowPoll(v => !v)}>
             <Icon name="poll" size={16}/> Poll
           </button>
-          <button className="composer-action" style={{color:'var(--slate)', cursor:'pointer', background:'transparent', border:0}}>
+          <button className="composer-action" style={{color:'var(--slate)', cursor:'pointer', background: showPlace?'var(--cream)':'transparent', border:0, borderRadius:8}} onClick={() => setShowPlace(v => !v)}>
             <Icon name="location" size={16}/> Place
           </button>
-          <button className="composer-action" style={{color:'#C9A645', cursor:'pointer', background:'transparent', border:0}}>
+          <button className="composer-action" style={{color:'#C9A645', cursor:'pointer', background: showMood?'var(--butter-soft)':'transparent', border:0, borderRadius:8}} onClick={() => setShowMood(v => !v)}>
             <Icon name="smile" size={16}/> Mood
           </button>
         </div>
@@ -255,18 +322,36 @@ const ComposerScreen = ({ onClose }) => {
 // ============================================================
 //  NOTIFICATIONS panel (full screen mode)
 // ============================================================
-const NotifsScreen = () => (
-  <>
-    <div className="page-head">
-      <div>
-        <div className="page-greet"><span className="hand">all caught up</span></div>
-        <h1 className="page-title">Notifications</h1>
+const NotifsScreen = () => {
+  useStore();
+  const items = Store.notifications();
+  const icon = { comment: '💬', reaction: '❤️', kudos: '✦', mention: '🔔', nomination: '🌟' };
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <div className="page-greet"><span className="hand">{items.length ? 'stay in the loop' : 'all caught up'}</span></div>
+          <h1 className="page-title">Notifications</h1>
+        </div>
       </div>
-    </div>
-    <EmptyState emoji="🔔" title="You're all caught up"
-      sub="Reactions, replies, Bright Spots, event invites and mentions will land here as your team starts using Rehab.Wisal." />
-  </>
-);
+      {items.length === 0 ? (
+        <EmptyState emoji="🔔" title="You're all caught up"
+          sub="Reactions, replies, Bright Spots, event invites and mentions will land here as your team starts using Rehab.Wisal." />
+      ) : (
+        <div style={{display:'flex', flexDirection:'column', gap:2}}>
+          {items.map(n => (
+            <div key={n.id} className="card card-pad" style={{display:'flex', alignItems:'center', gap:12, padding:'12px 14px', marginBottom:8}}>
+              <div style={{width:36, height:36, borderRadius:10, background:'var(--cream)', display:'grid', placeItems:'center', fontSize:18, flexShrink:0}}>{icon[n.kind] || '🔔'}</div>
+              {n.person && <Avatar person={n.person} size="sm" />}
+              <div style={{flex:1, minWidth:0, fontSize:13.5, color:'var(--navy)'}}>{n.text}</div>
+              <div style={{fontSize:11.5, color:'var(--ink-soft)', flexShrink:0}}>{timeAgo(n.at)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+};
 
 // ============================================================
 //  CHAT screen
@@ -374,6 +459,7 @@ const ChatScreen = () => {
   const [draft, setDraft] = useS3('');
   const [showNewGroup, setShowNewGroup] = useS3(false);
   const [showGroupSettings, setShowGroupSettings] = useS3(false);
+  const [search, setSearch] = useS3('');
   const bodyRef = React.useRef(null);
   const activeConv = convos.find(c => c.id === active) || convos[0];
   const msgs = Store.messagesWith(active);
@@ -402,11 +488,11 @@ const ChatScreen = () => {
           <div style={{display:'flex', gap:8, marginBottom:12}}>
             <div className="search-bar" style={{flex:1, padding:'8px 14px'}}>
               <Icon name="search" size={16}/>
-              <input placeholder="Search people…" />
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search people…" />
             </div>
             <button className="btn btn-icon" title="New group chat" onClick={()=>setShowNewGroup(true)}><Icon name="plus" size={16}/></button>
           </div>
-          {convos.map(c => {
+          {convos.filter(c => !search.trim() || (c.id==='team' ? 'whole hospital'.includes(search.trim().toLowerCase()) : (c.name||'').toLowerCase().includes(search.trim().toLowerCase()))).map(c => {
             const on = c.id === active;
             const isTeam = c.id === 'team';
             return (
@@ -559,8 +645,38 @@ const SearchScreen = ({ go }) => {
       </div>
 
       <div style={{marginTop:22}}>
-        <EmptyState emoji="🔍" title="Posts &amp; events will be searchable here"
-          sub="Once your hospital is on Rehab.Wisal, search finds Bright Spots, wins, events and photos across every team." />
+        {q.trim() ? (() => {
+          const posts = Store.searchPosts(q);
+          const foundEvents = Store.searchEvents(q);
+          if (posts.length === 0 && foundEvents.length === 0) {
+            return <EmptyState emoji="🔍" title="No matches" sub={`Nothing found for "${q.trim()}" in posts or events.`} />;
+          }
+          return (<>
+            {foundEvents.length > 0 && (<>
+              <div className="section-head"><h3>Events</h3><span className="meta">{foundEvents.length} match{foundEvents.length!==1?'es':''}</span></div>
+              <div style={{display:'flex', flexDirection:'column', gap:8, marginBottom:18}}>
+                {foundEvents.map(e => (
+                  <div key={e.id} className="card card-pad" style={{display:'flex', gap:12, alignItems:'center'}}>
+                    <div className={`event-banner ${e.color}`} style={{width:52, height:52, flexShrink:0}}><div className="event-banner-d">{e.d || '·'}</div><div className="event-banner-m">{e.m}</div></div>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontWeight:600, fontSize:14, color:'var(--navy)'}}>{e.title}</div>
+                      <div style={{fontSize:12, color:'var(--ink-soft)'}}>{e.time}{e.location ? ' · '+e.location : ''}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>)}
+            {posts.length > 0 && (<>
+              <div className="section-head"><h3>Posts</h3><span className="meta">{posts.length} match{posts.length!==1?'es':''}</span></div>
+              <div style={{display:'flex', flexDirection:'column', gap:16}}>
+                {posts.map(p => <Post key={p.id} post={p} />)}
+              </div>
+            </>)}
+          </>);
+        })() : (
+          <EmptyState emoji="🔍" title="Posts &amp; events will be searchable here"
+            sub="Type above to search Bright Spots, wins, events and photos across every team." />
+        )}
       </div>
     </>
   );

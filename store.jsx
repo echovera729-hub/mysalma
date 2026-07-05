@@ -34,6 +34,7 @@ const DEFAULT_PROFILE = {
   id: 'me', name: 'You', role: 'Team member', team: 'PT',
   tagline: 'new here — say hi 👋', bio: '', avatar: null, cover: null,
   status: 'approved', is_admin: false,
+  shiftStatus: 'floor', floor: null,
   theme: {}, saved: {}, calendar_cover: null, settings: {},
 };
 
@@ -94,6 +95,7 @@ function personFor(row) {
     role: row.role || '', team,
     color: (window.TEAMS && TEAMS[team] ? TEAMS[team] : { color: '#94A0B8' }).color,
     emoji: initials, avatar: row.avatar || null,
+    shiftStatus: row.shiftStatus || 'floor', floor: row.floor || null,
   };
 }
 function profileRow(id) { return (_state.profiles || []).find(p => p.id === id); }
@@ -270,6 +272,8 @@ const Store = {
       featured: post.featured || null, kudos_names: post.kudosNames || [],
       kudos_tag: post.kudosTag || null, capsule: post.capsule || null,
       crew_id: post.crewId || null,
+      poll: post.poll || null, place: post.place || null, mood_tag: post.moodTag || null,
+      video_url: post.videoUrl || null,
       created_at: new Date().toISOString(),
     };
     mutate(() => cacheInsert('posts', row), () => sb.from('posts').insert(row));
@@ -277,6 +281,30 @@ const Store = {
   },
   deletePost(id) {
     mutate(() => cacheRemove('posts', p => p.id === id), () => sb.from('posts').delete().eq('id', id));
+  },
+
+  // ---------- polls (embedded on a post) ----------
+  pollVotesFor(postId, optIdx) {
+    const post = (_state.posts || []).find(p => p.id === postId);
+    if (!post || !post.poll) return 0;
+    return (post.poll.options[optIdx]?.votes || []).length;
+  },
+  myPollVote(postId) {
+    const post = (_state.posts || []).find(p => p.id === postId);
+    if (!post || !post.poll) return null;
+    const i = post.poll.options.findIndex(o => (o.votes || []).includes(_meId));
+    return i >= 0 ? i : null;
+  },
+  votePoll(postId, optIdx) {
+    mutate(() => {
+      const arr = _state.posts || [];
+      const i = arr.findIndex(p => p.id === postId);
+      if (i < 0 || !arr[i].poll) return;
+      const poll = { ...arr[i].poll, options: arr[i].poll.options.map(o => ({ ...o, votes: (o.votes || []).filter(v => v !== _meId) })) };
+      poll.options[optIdx].votes = [...poll.options[optIdx].votes, _meId];
+      arr[i] = { ...arr[i], poll };
+      _state.posts = [...arr];
+    }, () => sb.from('posts').update({ poll: (this.allPosts().find(p=>p.id===postId)||{}).poll }).eq('id', postId));
   },
 
   // ---------- reactions ----------
@@ -338,6 +366,15 @@ const Store = {
       () => { cacheRemove('dailies', d => d.user_id === _meId && d.day === day); if (answer) cacheInsert('dailies', { user_id: _meId, day, answer }); },
       () => answer ? sb.from('dailies').upsert({ user_id: _meId, day, answer }) : sb.from('dailies').delete().match({ user_id: _meId, day }),
     );
+  },
+
+  // Tally of your own logged moods over the last N days (real data, no invented stats).
+  myMoodTally(days = 7) {
+    const cutoff = Date.now() - days * 86400000;
+    const mine = (_state.moods || []).filter(m => m.user_id === _meId && new Date(m.day).getTime() >= cutoff - 86400000);
+    const tally = {};
+    mine.forEach(m => { tally[m.mood] = (tally[m.mood] || 0) + 1; });
+    return Object.entries(tally).map(([mood, count]) => ({ mood, count })).sort((a, b) => b.count - a.count);
   },
 
   // ---------- events ----------
@@ -647,6 +684,57 @@ const Store = {
   // ---------- sync error banner (surfaces silent save failures, e.g. schema drift) ----------
   syncError() { return _lastSyncError; },
   clearSyncError() { _lastSyncError = null; _emit(); },
+
+  // ---------- notifications (derived from real activity, no fake entries) ----------
+  notifications() {
+    const items = [];
+    const myFirst = (this.profile().name || '').split(/\s+/)[0];
+    const myPostIds = new Set(this.myPosts().map(p => p.id));
+    (_state.comments || []).forEach(c => {
+      if (myPostIds.has(c.post_id) && c.user_id !== _meId) {
+        const person = FIND(c.user_id);
+        items.push({ id: 'cm-' + c.id, kind: 'comment', at: c.created_at, person, text: `${person ? person.first : 'Someone'} replied to your post: "${(c.text || '').slice(0, 60)}"` });
+      }
+    });
+    (_state.reactions || []).forEach(r => {
+      if (myPostIds.has(r.post_id) && r.user_id !== _meId) {
+        const person = FIND(r.user_id);
+        items.push({ id: 'rx-' + (r.id || r.post_id + r.user_id + r.emoji), kind: 'reaction', at: r.created_at || (this.allPosts().find(p=>p.id===r.post_id)||{}).created_at, person, text: `${person ? person.first : 'Someone'} reacted ${r.emoji} to your post` });
+      }
+    });
+    this.allPosts().forEach(p => {
+      if (p.author === _meId) return;
+      const names = p.kudos_names || p.kudosNames || [];
+      if (names.some(n => String(n).toLowerCase() === (this.profile().name || '').toLowerCase() || String(n).toLowerCase() === (myFirst||'').toLowerCase())) {
+        const person = FIND(p.author);
+        items.push({ id: 'kd-' + p.id, kind: 'kudos', at: p.created_at, person, text: `${person ? person.first : 'Someone'} sent you a Bright Spot ✦` });
+      }
+      if (myFirst && p.body && new RegExp('@' + myFirst.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(p.body)) {
+        const person = FIND(p.author);
+        items.push({ id: 'mn-' + p.id, kind: 'mention', at: p.created_at, person, text: `${person ? person.first : 'Someone'} mentioned you in a post` });
+      }
+    });
+    const myNom = this.myNominationThisWeek();
+    this.nominationsThisWeek().forEach(n => {
+      if (n.nominee === _meId && n.by !== _meId) {
+        const person = FIND(n.by);
+        items.push({ id: 'nm-' + n.id, kind: 'nomination', at: n.created_at, person, text: `${person ? person.first : 'Someone'} nominated you for this week's Spotlight` });
+      }
+    });
+    return items.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+  },
+
+  // ---------- search (real matches across posts + events, no placeholder results) ----------
+  searchPosts(q) {
+    const query = (q || '').trim().toLowerCase();
+    if (!query) return [];
+    return this.allPosts().filter(p => (p.body || '').toLowerCase().includes(query));
+  },
+  searchEvents(q) {
+    const query = (q || '').trim().toLowerCase();
+    if (!query) return [];
+    return this.events().filter(e => (e.title || '').toLowerCase().includes(query));
+  },
 
   // ---------- danger zone ----------
   reset() {

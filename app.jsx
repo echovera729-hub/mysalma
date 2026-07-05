@@ -197,7 +197,7 @@ const TweaksUI = ({ t, set }) => (
 const App = () => {
   useStore();
   const [page, setPage] = useStateApp('home');
-  const [showCompose, setShowCompose] = useStateApp(false);
+  const [composeType, setComposeType] = useStateApp(null); // null = closed, else initial post type
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const set = (k, v) => setTweak({[k]: v});
   const [onboarded, setOnboarded] = useStateApp(t.skipOnboarding);
@@ -211,7 +211,7 @@ const App = () => {
       const params = new URLSearchParams(location.search);
       const screen = params.get('screen');
       if (screen && NAV.some(n => n.id === screen)) setPage(screen);
-      if (params.get('action') === 'compose') setShowCompose(true);
+      if (params.get('action') === 'compose') setComposeType('moment');
     } catch (e) {}
   }, []);
 
@@ -274,11 +274,11 @@ const App = () => {
 
   return (
     <>
-      <MobileTopBar page={page} setPage={setPage} onCompose={() => setShowCompose(true)} />
+      <MobileTopBar page={page} setPage={setPage} onCompose={() => setComposeType('moment')} />
       <div className="app">
-        <Sidebar page={page} setPage={setPage} onCompose={() => setShowCompose(true)} />
+        <Sidebar page={page} setPage={setPage} onCompose={() => setComposeType('moment')} />
         <main className="main">
-          {page === 'home'     && <HomeScreen tweak={t} onCompose={() => setShowCompose(true)} />}
+          {page === 'home'     && <HomeScreen tweak={t} onCompose={(type) => setComposeType(type || 'moment')} />}
           {page === 'shift'    && <ShiftScreen />}
           {page === 'profile'  && <ProfileScreen />}
           {page === 'crews'    && <CrewsScreen />}
@@ -299,7 +299,7 @@ const App = () => {
         </aside>
       </div>
 
-      {showCompose && <ComposerScreen onClose={() => setShowCompose(false)} />}
+      {composeType && <ComposerScreen initialType={composeType} onClose={() => setComposeType(null)} />}
       <TweaksUI t={t} set={set} />
       {Store.mode === 'supabase' && Store.syncError() && (
         <div style={{position:'fixed', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:400,

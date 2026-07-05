@@ -94,6 +94,57 @@ const Post = ({ post }) => {
         </div>
       )}
 
+      {(post.place || post.mood_tag) && (
+        <div style={{padding: '0 18px 10px', display:'flex', gap:8, flexWrap:'wrap'}}>
+          {post.place && <span className="pill pill-slate" style={{fontSize:12}}><Icon name="location" size={12}/> {post.place}</span>}
+          {post.mood_tag && (() => { const m = MOODS.find(x=>x.id===post.mood_tag); return m ? <span className="pill pill-butter" style={{fontSize:12}}>{m.emoji} {m.label}</span> : null; })()}
+        </div>
+      )}
+
+      {post.video_url && (
+        <div style={{padding: '0 18px 14px'}}>
+          <a href={post.video_url} target="_blank" rel="noopener noreferrer" style={{display:'flex', alignItems:'center', gap:12, padding:'12px 14px', background:'var(--navy)', borderRadius:12, textDecoration:'none'}}>
+            <div style={{width:38, height:38, borderRadius:10, background:'rgba(255,255,255,.15)', display:'grid', placeItems:'center', color:'white', flexShrink:0}}><Icon name="video" size={18}/></div>
+            <div style={{minWidth:0}}>
+              <div style={{fontWeight:600, fontSize:13.5, color:'white'}}>Watch</div>
+              <div style={{fontSize:12, color:'rgba(255,255,255,.7)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{post.video_url}</div>
+            </div>
+          </a>
+        </div>
+      )}
+
+      {post.poll && (() => {
+        const totalVotes = post.poll.options.reduce((s,o)=>s+(o.votes||[]).length, 0);
+        const myVote = Store.myPollVote(post.id);
+        return (
+          <div style={{padding: '0 18px 14px'}}>
+            <div style={{padding:14, background:'#F1EEFA', borderRadius:12, border:'1px solid var(--lavender)'}}>
+              <div style={{fontWeight:600, fontSize:14, color:'var(--navy)', marginBottom:10}}>{post.poll.question}</div>
+              <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                {post.poll.options.map((o, i) => {
+                  const count = (o.votes || []).length;
+                  const pct = totalVotes ? Math.round(count / totalVotes * 100) : 0;
+                  const mine = myVote === i;
+                  return (
+                    <button key={i} onClick={() => Store.votePoll(post.id, i)} style={{
+                      position:'relative', textAlign:'left', padding:'8px 12px', borderRadius:10, cursor:'pointer',
+                      border: `1.5px solid ${mine ? '#524FA3' : 'var(--lavender)'}`, background:'var(--paper)', overflow:'hidden'
+                    }}>
+                      <div style={{position:'absolute', inset:0, width: pct+'%', background:'#E6E1F6', zIndex:0}} />
+                      <div style={{position:'relative', display:'flex', justifyContent:'space-between', fontSize:13, fontWeight:600, color:'var(--navy)'}}>
+                        <span>{mine ? '✓ ' : ''}{o.text}</span>
+                        <span>{pct}%</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{fontSize:11.5, color:'var(--ink-soft)', marginTop:8}}>{totalVotes} vote{totalVotes!==1?'s':''}</div>
+            </div>
+          </div>
+        );
+      })()}
+
       {post.eventChip && (
         <div style={{padding: '0 18px 14px'}}>
           <div style={{display:'flex', alignItems:'center', gap:12, padding:'12px 14px', background:'var(--peach-soft)', borderRadius:12, border:'1px solid #F3D7BA'}}>
@@ -171,6 +222,7 @@ const PulseCheckin = () => {
   useStore();
   const mood = Store.moodToday();
   const name = Store.profile().name.split(' ')[0];
+  const weekTally = Store.myMoodTally(7);
   return (
     <div className="pulse-card">
       <div className="pulse-label">Hey {name} — how's your shift starting?</div>
@@ -184,9 +236,14 @@ const PulseCheckin = () => {
         ))}
       </div>
       {mood && (
-        <div style={{marginTop:12, padding:'10px 12px', background:'var(--paper)', borderRadius:12, fontSize:13, color:'var(--navy)', display:'flex', alignItems:'center', gap:8}}>
+        <div style={{marginTop:12, padding:'10px 12px', background:'var(--paper)', borderRadius:12, fontSize:13, color:'var(--navy)', display:'flex', alignItems:'center', gap:10, flexWrap:'wrap'}}>
           <span style={{fontSize:18}}>{MOODS.find(m=>m.id===mood).emoji}</span>
-          <span>Logged for today, thank you. Floor pulse so far: <strong>62% Steady</strong>, 18% Wiped — Aisha brought banana bread 🍞</span>
+          <span>Logged for today, thank you.</span>
+          {weekTally.length > 0 && (
+            <span style={{color:'var(--ink-soft)'}}>
+              Your last 7 days: {weekTally.map(t => `${MOODS.find(m=>m.id===t.mood)?.emoji || ''} ×${t.count}`).join(' · ')}
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -198,7 +255,7 @@ const PulseCheckin = () => {
 // ============================================================
 const Stories = ({ onCreate }) => (
   <div className="stories">
-    <div className="story story-create" onClick={onCreate}>
+    <div className="story story-create" onClick={()=>onCreate()}>
       <div className="story-create-icon">+</div>
       <div className="story-create-text">Your<br/>Moment</div>
     </div>
@@ -228,13 +285,13 @@ const Stories = ({ onCreate }) => (
 const ComposerTrigger = ({ onClick }) => {
   const name = Store.profile().name.split(' ')[0];
   return (
-    <div className="composer-trigger" onClick={onClick}>
+    <div className="composer-trigger">
       <Avatar person="me" size="md" />
-      <div className="composer-trigger-input">Hey {name} — what's a bright spot from today? ✨</div>
+      <div className="composer-trigger-input" style={{cursor:'pointer'}} onClick={()=>onClick()}>Hey {name} — what's a bright spot from today? ✨</div>
       <div className="composer-trigger-actions">
-        <span className="composer-action" style={{color:'var(--teal-deep)'}}><Icon name="image" size={16}/> Photo</span>
-        <span className="composer-action" style={{color:'#B86833'}}><Icon name="star" size={16}/> Kudos</span>
-        <span className="composer-action" style={{color:'#524FA3'}}><Icon name="capsule" size={16}/> Capsule</span>
+        <span className="composer-action" style={{color:'var(--teal-deep)', cursor:'pointer'}} onClick={()=>onClick('moment')}><Icon name="image" size={16}/> Photo</span>
+        <span className="composer-action" style={{color:'#B86833', cursor:'pointer'}} onClick={()=>onClick('kudos')}><Icon name="star" size={16}/> Kudos</span>
+        <span className="composer-action" style={{color:'#524FA3', cursor:'pointer'}} onClick={()=>onClick('capsule')}><Icon name="capsule" size={16}/> Capsule</span>
       </div>
     </div>
   );
