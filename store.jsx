@@ -31,7 +31,7 @@ let _inited = false;
 const _listeners = new Set();
 
 const DEFAULT_PROFILE = {
-  id: 'me', name: 'You', role: 'Team member', team: 'PT',
+  id: 'me', name: 'You', role: 'Team member', team: 'PT', branch: 'Main',
   tagline: 'new here — say hi 👋', bio: '', avatar: null, cover: null,
   status: 'approved', is_admin: false,
   shiftStatus: 'floor', floor: null,
@@ -92,7 +92,7 @@ function personFor(row) {
   const initials = name.split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'U';
   return {
     id: row.id, name, first: name.split(/\s+/)[0] || name,
-    role: row.role || '', team,
+    role: row.role || '', team, branch: row.branch || null,
     color: (window.TEAMS && TEAMS[team] ? TEAMS[team] : { color: '#94A0B8' }).color,
     emoji: initials, avatar: row.avatar || null,
     shiftStatus: row.shiftStatus || 'floor', floor: row.floor || null,
@@ -207,12 +207,12 @@ const Store = {
     if (error) throw error;
     await loadAll(); subscribeRealtime(); _emit();
   },
-  async signUp(email, password, { name, role, team }) {
+  async signUp(email, password, { name, role, team, branch }) {
     const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name } } });
     if (error) throw error;
     if (data.session && data.user) {
       _meId = data.user.id; _authed = true;
-      await sb.from('profiles').upsert({ id: data.user.id, name, role, team });
+      await sb.from('profiles').upsert({ id: data.user.id, name, role, team, branch });
       await loadAll(); subscribeRealtime(); _emit();
       return { needsConfirm: false };
     }

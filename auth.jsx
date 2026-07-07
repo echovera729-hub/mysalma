@@ -9,6 +9,7 @@ const AuthScreen = () => {
   const [name, setName] = useAuthState('');
   const [role, setRole] = useAuthState('');
   const [team, setTeam] = useAuthState('PT');
+  const [branch, setBranch] = useAuthState('Main');
   const [busy, setBusy] = useAuthState(false);
   const [err, setErr] = useAuthState('');
   const [msg, setMsg] = useAuthState('');
@@ -22,7 +23,7 @@ const AuthScreen = () => {
       if (mode === 'signin') {
         await Store.signIn(email.trim(), password);
       } else {
-        const { needsConfirm } = await Store.signUp(email.trim(), password, { name: name.trim(), role: role.trim() || 'Team member', team });
+        const { needsConfirm } = await Store.signUp(email.trim(), password, { name: name.trim(), role: role.trim() || 'Team member', team, branch });
         if (needsConfirm) {
           setMsg('Account created! Check your email to confirm, then sign in. (Tip: an admin can turn off email confirmation in Supabase for instant access.)');
           setMode('signin');
@@ -63,6 +64,10 @@ const AuthScreen = () => {
           <label style={lbl}>Team</label>
           <select className="input" value={team} onChange={e=>setTeam(e.target.value)}>
             {Object.entries(TEAMS).map(([k,t]) => <option key={k} value={k}>{t.label}</option>)}
+          </select>
+          <label style={lbl}>Branch</label>
+          <select className="input" value={branch} onChange={e=>setBranch(e.target.value)}>
+            {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
         </>)}
 

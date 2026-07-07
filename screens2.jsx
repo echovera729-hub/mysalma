@@ -690,6 +690,7 @@ const OnboardingScreen = ({ onDone }) => {
   const [name, setName] = useS3('');
   const [role, setRole] = useS3('');
   const [team, setTeam] = useS3(null);
+  const [branch, setBranch] = useS3(null);
   const [mood, setMood] = useS3(null);
   const [crews, setCrews] = useS3([]);
 
@@ -698,6 +699,7 @@ const OnboardingScreen = ({ onDone }) => {
     if (name.trim()) patch.name = name.trim();
     if (role.trim()) patch.role = role.trim();
     if (team) patch.team = team;
+    if (branch) patch.branch = branch;
     if (Object.keys(patch).length) Store.setProfile(patch);
     if (mood) Store.setMood(mood);
     crews.forEach(idx => Store.addCrew(CREW_IDEAS[idx]));
@@ -720,6 +722,13 @@ const OnboardingScreen = ({ onDone }) => {
               <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Your role</label>
               <input className="input" value={role} onChange={e=>setRole(e.target.value)} placeholder="e.g. Physiotherapist" />
             </div>
+          </div>
+          <div style={{marginTop:14}}>
+            <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Your branch</label>
+            <select className="input" value={branch || ''} onChange={e=>setBranch(e.target.value)}>
+              <option value="" disabled>Select a branch…</option>
+              {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
           </div>
           <div style={{marginTop:16, padding:16, background:'var(--cream)', borderRadius:14, border:'1px solid var(--line)'}}>
             <div style={{display:'flex', gap:14, alignItems:'flex-start'}}>
@@ -1065,6 +1074,12 @@ const SettingsScreen = ({ go }) => {
                 <div className="settings-row-info"><h4>Department</h4><p>Sets who counts as "my team" in your feed</p></div>
                 <select className="input" style={{maxWidth:200}} value={prof.team} onChange={e=>Store.setProfile({team:e.target.value})}>
                   {Object.keys(TEAMS).map(k => <option key={k} value={k}>{TEAMS[k].label}</option>)}
+                </select>
+              </div>
+              <div className="settings-row">
+                <div className="settings-row-info"><h4>Branch</h4><p>Which hospital site you work at</p></div>
+                <select className="input" style={{maxWidth:200}} value={prof.branch || 'Main'} onChange={e=>Store.setProfile({branch:e.target.value})}>
+                  {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </div>
               <div className="divider" style={{margin:'8px 0 18px'}}></div>

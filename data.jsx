@@ -91,7 +91,10 @@ const CREW_IDEAS = [
 
 const EVENT_COLORS = ['peach','mint','lavender','butter','navy'];
 
+// The hospital network's branches — this is configuration, not mock data.
+const BRANCHES = ['Al Rahba', 'Main', 'SKMC', 'STMC', 'Al Ain', 'Al Dafra'];
+
 Object.assign(window, {
   TEAMS, FIND, currentUser, MOODS, DAILY_PROMPTS, POSTS, STORIES,
-  STATUS_META, URGENCY, CREW_IDEAS, EVENT_COLORS, FLOORS,
+  STATUS_META, URGENCY, CREW_IDEAS, EVENT_COLORS, FLOORS, BRANCHES,
 });
