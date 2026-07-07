@@ -359,7 +359,7 @@ const NotifsScreen = () => {
 const NewGroupModal = ({ onClose, onCreated }) => {
   const [name, setName] = useS3('');
   const [picked, setPicked] = useS3([]);
-  const mates = Store.teammates();
+  const mates = Store.branchTeammates();
   const toggle = (id) => setPicked(p => p.includes(id) ? p.filter(x=>x!==id) : [...p, id]);
   const create = () => { if (!name.trim()) return; const id = Store.createGroup(name.trim(), picked); onClose(); if (id) onCreated(id); };
   return (
@@ -371,9 +371,9 @@ const NewGroupModal = ({ onClose, onCreated }) => {
         </div>
         <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', marginBottom:6}}>Group name</label>
         <input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Night Shift Crew" autoFocus />
-        <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'16px 0 8px'}}>Add teammates</label>
+        <label style={{display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'16px 0 8px'}}>Add teammates <span style={{fontWeight:400, color:'var(--ink-mute)'}}>· {Store.myBranch()}</span></label>
         {mates.length === 0 ? (
-          <div style={{fontSize:13, color:'var(--ink-soft)'}}>No teammates yet — invite people to join first.</div>
+          <div style={{fontSize:13, color:'var(--ink-soft)'}}>No teammates at your branch yet — invite people to join first.</div>
         ) : (
           <div style={{display:'flex', flexDirection:'column', gap:2, maxHeight:260, overflow:'auto'}}>
             {mates.map(m => (
@@ -401,7 +401,7 @@ const GroupSettingsModal = ({ group, onClose }) => {
   const [name, setName] = useS3(group.name);
   const owner = Store.isGroupOwner(group.id);
   const members = Store.groupMembers(group.id);
-  const mates = Store.teammates().filter(m => !members.some(x=>x.id===m.id));
+  const mates = Store.branchTeammates().filter(m => !members.some(x=>x.id===m.id));
   return (
     <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
       <div className="modal-sheet" style={{width:'min(440px,100%)', maxHeight:'86vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:26, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
@@ -455,7 +455,7 @@ const GroupSettingsModal = ({ group, onClose }) => {
 const ChatScreen = () => {
   useStore();
   const convos = Store.conversations();
-  const [active, setActive] = useS3('team');
+  const [active, setActive] = useS3(Store.branchRoomId());
   const [draft, setDraft] = useS3('');
   const [showNewGroup, setShowNewGroup] = useS3(false);
   const [showGroupSettings, setShowGroupSettings] = useS3(false);
@@ -492,9 +492,9 @@ const ChatScreen = () => {
             </div>
             <button className="btn btn-icon" title="New group chat" onClick={()=>setShowNewGroup(true)}><Icon name="plus" size={16}/></button>
           </div>
-          {convos.filter(c => !search.trim() || (c.id==='team' ? 'whole hospital'.includes(search.trim().toLowerCase()) : (c.name||'').toLowerCase().includes(search.trim().toLowerCase()))).map(c => {
+          {convos.filter(c => !search.trim() || (c.id===Store.branchRoomId() ? Store.myBranch().toLowerCase().includes(search.trim().toLowerCase()) : (c.name||'').toLowerCase().includes(search.trim().toLowerCase()))).map(c => {
             const on = c.id === active;
-            const isTeam = c.id === 'team';
+            const isTeam = c.id === Store.branchRoomId();
             return (
               <div key={c.id} className={`chat-list-item ${on ? 'active' : ''}`} onClick={() => setActive(c.id)}>
                 {isTeam
@@ -504,31 +504,31 @@ const ChatScreen = () => {
                   : <Avatar person={c} size="md" />}
                 <div className="chat-list-info">
                   <div className="chat-list-name">
-                    <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{isTeam ? 'Whole Hospital' : c.name}</span>
+                    <span style={{whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{isTeam ? '🏥 ' + Store.myBranch() : c.name}</span>
                     {c.lastAt && <span className="chat-list-time">{timeAgo(c.lastAt)}</span>}
                   </div>
-                  <div className="chat-list-msg">{c.last || (isTeam ? 'Team-wide room — say hi 👋' : c.isGroup ? `${c.memberCount} member${c.memberCount!==1?'s':''}` : 'No messages yet')}</div>
+                  <div className="chat-list-msg">{c.last || (isTeam ? 'Branch-wide room — say hi 👋' : c.isGroup ? `${c.memberCount} member${c.memberCount!==1?'s':''}` : 'No messages yet')}</div>
                 </div>
               </div>
             );
           })}
           {convos.length <= 1 && (
             <div style={{fontSize:12.5, color:'var(--ink-soft)', padding:'12px 8px', lineHeight:1.5}}>
-              Teammates appear here as they join Rehab.Wisal. The <strong>Whole Hospital</strong> room is always open.
+              Teammates at your branch appear here as they join Rehab.Wisal. The <strong>{Store.myBranch()}</strong> room is always open.
             </div>
           )}
         </div>
 
         <div className="chat-thread">
           <div className="chat-head">
-            {activeConv && activeConv.id === 'team'
+            {activeConv && activeConv.id === Store.branchRoomId()
               ? <div style={{width:40, height:40, borderRadius:12, background:'var(--teal-tint)', display:'grid', placeItems:'center', fontSize:20}}>🏥</div>
               : activeConv && activeConv.isGroup
               ? <div style={{width:40, height:40, borderRadius:12, background: activeConv.photo?`url(${activeConv.photo}) center/cover`:'var(--lavender-soft)', display:'grid', placeItems:'center', fontSize:18}}>{!activeConv.photo && '👥'}</div>
               : <Avatar person={activeConv} size="md" />}
             <div style={{flex:1, minWidth:0}}>
-              <div style={{fontWeight:600, color:'var(--navy)'}}>{activeConv ? (activeConv.id === 'team' ? 'Whole Hospital' : activeConv.name) : 'Chat'}</div>
-              <div style={{fontSize:12, color:'var(--ink-soft)'}}>{activeConv && activeConv.id === 'team' ? 'Everyone on Rehab.Wisal' : activeConv && activeConv.isGroup ? `${activeConv.memberCount} member${activeConv.memberCount!==1?'s':''} · group chat` : (activeConv ? (activeConv.role || (TEAMS[activeConv.team]||{}).label) : '')}</div>
+              <div style={{fontWeight:600, color:'var(--navy)'}}>{activeConv ? (activeConv.id === Store.branchRoomId() ? '🏥 ' + Store.myBranch() : activeConv.name) : 'Chat'}</div>
+              <div style={{fontSize:12, color:'var(--ink-soft)'}}>{activeConv && activeConv.id === Store.branchRoomId() ? `Everyone at ${Store.myBranch()}` : activeConv && activeConv.isGroup ? `${activeConv.memberCount} member${activeConv.memberCount!==1?'s':''} · group chat` : (activeConv ? (activeConv.role || (TEAMS[activeConv.team]||{}).label) : '')}</div>
             </div>
             {activeConv && activeConv.isGroup && (
               <button className="btn btn-icon btn-ghost" title="Group settings" onClick={()=>setShowGroupSettings(true)}><Icon name="settings" size={16}/></button>
@@ -562,7 +562,7 @@ const ChatScreen = () => {
           </div>
 
           <div className="chat-input">
-            <input className="input" placeholder={`Message ${activeConv ? (activeConv.id === 'team' ? 'the team' : activeConv.isGroup ? 'the group' : activeConv.first) : ''}…`}
+            <input className="input" placeholder={`Message ${activeConv ? (activeConv.id === Store.branchRoomId() ? 'the branch' : activeConv.isGroup ? 'the group' : activeConv.first) : ''}…`}
               value={draft} onChange={e=>setDraft(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') send(); }} />
             <button className="btn btn-primary btn-icon" onClick={send}><Icon name="send" size={16}/></button>

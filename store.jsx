@@ -470,7 +470,8 @@ const Store = {
   allGroups() { return (_state.groups || []).slice(); },
   myGroups() {
     const ids = (_state.group_members || []).filter(m => m.user_id === _meId).map(m => m.group_id);
-    return this.allGroups().filter(g => ids.includes(g.id));
+    const myBranch = this.myBranch();
+    return this.allGroups().filter(g => ids.includes(g.id) && (g.branch || 'Main') === myBranch);
   },
   groupById(id) { return this.allGroups().find(g => g.id === id) || null; },
   groupMembers(id) {
@@ -481,8 +482,13 @@ const Store = {
   createGroup(name, memberIds = []) {
     if (!name || !name.trim()) return null;
     const id = newId('grp');
-    const row = { id, name: name.trim(), photo: null, created_by: _meId, created_at: new Date().toISOString() };
-    const members = Array.from(new Set([_meId, ...memberIds])).map(uid => ({ group_id: id, user_id: uid }));
+    const branch = this.myBranch();
+    // Only same-branch teammates can be added, even if a stray id sneaks in
+    // from a stale client — group chats stay confined to one branch.
+    const branchIds = new Set(this.branchTeammates().map(p => p.id));
+    const safeMembers = memberIds.filter(uid => branchIds.has(uid));
+    const row = { id, name: name.trim(), photo: null, branch, created_by: _meId, created_at: new Date().toISOString() };
+    const members = Array.from(new Set([_meId, ...safeMembers])).map(uid => ({ group_id: id, user_id: uid }));
     mutate(
       () => { cacheInsert('groups', row); members.forEach(m => cacheInsert('group_members', m)); },
       async () => { await sb.from('groups').insert(row); await sb.from('group_members').insert(members); },
@@ -562,6 +568,13 @@ const Store = {
       })
       .map(personFor);
   },
+  // Same-branch approved teammates only — chat (rooms, DMs, groups) is scoped
+  // to your branch, so staff at Main don't see or message staff at SKMC, etc.
+  myBranch() { return this.profile().branch || 'Main'; },
+  branchTeammates() {
+    const myBranch = this.myBranch();
+    return this.teammates().filter(p => (p.branch || 'Main') === myBranch);
+  },
 
   // ---------- membership & approvals ----------
   // In local (single-user) mode the one user is always an approved admin so
@@ -608,15 +621,19 @@ const Store = {
   // (crew chat), or another user's id (1:1 DM). Rooms/groups/crews show every
   // member's messages; DMs store recipient=theirId and sender=me.
   _isRoomConv(id) {
-    if (id === 'team') return true;
+    if (id === this.branchRoomId()) return true;
     if ((_state.groups || []).some(g => g.id === id)) return true;
     if ((_state.crews || []).some(c => c.id === id)) return true;
     return false;
   },
+  // The whole-hospital room is actually scoped per branch: everyone at your
+  // branch shares one room, but you never see traffic from other branches.
+  branchRoomId() { return 'team:' + this.myBranch(); },
   conversations() {
-    // Build a list of people you can chat with: the Team room, your groups + every approved teammate.
-    const mates = this.teammates();
-    const list = [{ id: 'team', name: '🏥 Whole Hospital', team: null, isRoom: true }];
+    // Build a list of people you can chat with: your branch's room, your
+    // branch's groups + every approved teammate at your branch.
+    const mates = this.branchTeammates();
+    const list = [{ id: this.branchRoomId(), name: '🏥 ' + this.myBranch(), team: null, isRoom: true }];
     this.myGroups().forEach(g => list.push({ id: g.id, name: g.name, isRoom: true, isGroup: true, photo: g.photo, memberCount: this.groupMembers(g.id).length }));
     mates.forEach(m => list.push({ ...m, isRoom: false }));
     // annotate each with last message + unread-ish preview
@@ -625,7 +642,7 @@ const Store = {
       const last = msgs[msgs.length - 1];
       return { ...c, last: last ? last.text : null, lastAt: last ? last.created_at : null };
     }).sort((a, b) => {
-      if (a.id === 'team') return -1; if (b.id === 'team') return 1;
+      if (a.id === this.branchRoomId()) return -1; if (b.id === this.branchRoomId()) return 1;
       return new Date(b.lastAt || 0) - new Date(a.lastAt || 0);
     });
   },
