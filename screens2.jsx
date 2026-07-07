@@ -1077,10 +1077,14 @@ const SettingsScreen = ({ go }) => {
                 </select>
               </div>
               <div className="settings-row">
-                <div className="settings-row-info"><h4>Branch</h4><p>Which hospital site you work at</p></div>
-                <select className="input" style={{maxWidth:200}} value={prof.branch || 'Main'} onChange={e=>Store.setProfile({branch:e.target.value})}>
-                  {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
+                <div className="settings-row-info"><h4>Branch</h4><p>{Store.isAdmin() ? 'Which hospital site you work at' : 'Set at signup — only an admin can change this'}</p></div>
+                {Store.isAdmin() ? (
+                  <select className="input" style={{maxWidth:200}} value={prof.branch || 'Main'} onChange={e=>Store.setProfile({branch:e.target.value})}>
+                    {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                ) : (
+                  <span className="pill" style={{fontSize:12.5}}>{prof.branch || 'Main'}</span>
+                )}
               </div>
               <div className="divider" style={{margin:'8px 0 18px'}}></div>
               <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10}}>

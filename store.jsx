@@ -571,7 +571,7 @@ const Store = {
   membersByStatus(status) {
     return (_state.profiles || [])
       .filter(p => (p.status || 'pending') === status)
-      .map(p => ({ ...personFor(p), status: p.status || 'pending', isAdmin: !!p.is_admin, created_at: p.created_at }))
+      .map(p => ({ ...personFor(p), status: p.status || 'pending', isAdmin: !!p.is_admin, created_at: p.created_at, branch: p.branch || 'Main' }))
       .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   },
   pendingCount() { return (_state.profiles || []).filter(p => (p.status || 'pending') === 'pending').length; },
@@ -588,6 +588,20 @@ const Store = {
   },
   approveUser(id) { this.setMemberStatus(id, 'approved'); },
   rejectUser(id)  { this.setMemberStatus(id, 'rejected'); },
+
+  // Branch is locked after signup for regular staff — only an admin can
+  // reassign someone to a different hospital location.
+  setMemberBranch(id, branch) {
+    if (!this.isAdmin()) return;
+    mutate(
+      () => {
+        const arr = _state.profiles || [];
+        const i = arr.findIndex(p => p.id === id);
+        if (i >= 0) { arr[i] = { ...arr[i], branch }; _state.profiles = [...arr]; }
+      },
+      () => sb.from('profiles').update({ branch }).eq('id', id),
+    );
+  },
 
   // ---------- chat / messages ----------
   // A conversation id is 'team' (whole-hospital room), a group id, a crew id

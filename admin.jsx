@@ -60,6 +60,10 @@ const MemberRow = ({ m, actions }) => (
       </div>
       <div style={{fontSize:12.5, color:'var(--ink-soft)'}}>{m.role || 'Team member'} · {(TEAMS[m.team]||{}).label || m.team}</div>
     </div>
+    <select className="input" style={{maxWidth:130, fontSize:12.5}} value={m.branch || 'Main'}
+      onChange={e=>Store.setMemberBranch(m.id, e.target.value)} title="Branch — only admins can change this">
+      {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+    </select>
     {actions}
   </div>
 );
