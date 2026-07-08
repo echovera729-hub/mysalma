@@ -207,12 +207,12 @@ const Store = {
     if (error) throw error;
     await loadAll(); subscribeRealtime(); _emit();
   },
-  async signUp(email, password, { name, role, team, branch }) {
+  async signUp(email, password, { name, role, team, branch, gender }) {
     const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name } } });
     if (error) throw error;
     if (data.session && data.user) {
       _meId = data.user.id; _authed = true;
-      await sb.from('profiles').upsert({ id: data.user.id, name, role, team, branch });
+      await sb.from('profiles').upsert({ id: data.user.id, name, role, team, branch, gender: gender || null });
       await loadAll(); subscribeRealtime(); _emit();
       return { needsConfirm: false };
     }

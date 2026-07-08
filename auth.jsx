@@ -10,6 +10,7 @@ const AuthScreen = () => {
   const [role, setRole] = useAuthState('');
   const [team, setTeam] = useAuthState('PT');
   const [branch, setBranch] = useAuthState('Main');
+  const [gender, setGender] = useAuthState('');
   const [busy, setBusy] = useAuthState(false);
   const [err, setErr] = useAuthState('');
   const [msg, setMsg] = useAuthState('');
@@ -23,7 +24,7 @@ const AuthScreen = () => {
       if (mode === 'signin') {
         await Store.signIn(email.trim(), password);
       } else {
-        const { needsConfirm } = await Store.signUp(email.trim(), password, { name: name.trim(), role: role.trim() || 'Team member', team, branch });
+        const { needsConfirm } = await Store.signUp(email.trim(), password, { name: name.trim(), role: role.trim() || 'Team member', team, branch, gender: gender || null });
         if (needsConfirm) {
           setMsg('Account created! Check your email to confirm, then sign in. (Tip: an admin can turn off email confirmation in Supabase for instant access.)');
           setMode('signin');
@@ -69,6 +70,13 @@ const AuthScreen = () => {
           <select className="input" value={branch} onChange={e=>setBranch(e.target.value)}>
             {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
           </select>
+          <label style={lbl}>Gender</label>
+          <select className="input" value={gender} onChange={e=>setGender(e.target.value)}>
+            <option value="">Prefer not to say</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+          </select>
+          <p style={{fontSize:12, color:'var(--ink-soft)', margin:'4px 0 0'}}>Used only to match you to gender-restricted events (e.g. female-only sessions)</p>
         </>)}
 
         <label style={lbl}>Work email</label>

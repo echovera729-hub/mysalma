@@ -1044,7 +1044,11 @@ a { color: inherit; }
 .event-detail span { display: inline-flex; align-items: center; gap: 4px; }
 .event-foot {
   display: flex; align-items: center; justify-content: space-between;
-  margin-top: 12px;
+  margin-top: 12px; flex-wrap: wrap; gap: 8px;
+}
+.event-foot > div { flex-shrink: 0; }
+@media (max-width: 680px) {
+  .event-foot .btn-sm { padding: 7px 12px; font-size: 12px; }
 }
 
 /* ----------- Group head ----------- */
@@ -1193,8 +1197,10 @@ a { color: inherit; }
     padding: 20px 18px calc(20px + env(safe-area-inset-bottom)) !important;
   }
 
-  /* Touch targets */
-  .btn { padding: 10px 16px; }
+  /* Touch targets (skip .btn-sm — those are meant to stay compact, e.g.
+     event-card RSVP pills; bumping them to full size broke their alignment
+     next to the host avatar/name on phones) */
+  .btn:not(.btn-sm) { padding: 10px 16px; }
   .post-foot-btn { padding: 9px 9px; gap: 5px; }
   .post-reactions { min-width: 0; }
 
