@@ -574,6 +574,8 @@ const EventForm = ({ onClose, crewId }) => {
   const [uploading, setUploading] = useState2(false);
   const [tag, setTag] = useState2('Social');
   const [color, setColor] = useState2('peach');
+  const [maxParticipants, setMaxParticipants] = useState2('');
+  const [gender, setGender] = useState2('all');
   const fileRef = React.useRef(null);
   const lbl = { display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'14px 0 6px' };
   const pickImage = async (file) => {
@@ -586,7 +588,7 @@ const EventForm = ({ onClose, crewId }) => {
     if (!title.trim()) return;
     let d = '', m = 'MAY', day = '';
     if (date) { const dt = new Date(date + 'T00:00'); d = dt.getDate(); m = dt.toLocaleDateString([], {month:'short'}).toUpperCase(); day = dt.toLocaleDateString([], {weekday:'long'}); }
-    Store.addEvent({ title: title.trim(), d, m, day, time: time || 'TBD', where: where.trim(), tag, color, description: desc.trim(), image, crewId });
+    Store.addEvent({ title: title.trim(), d, m, day, time: time || 'TBD', where: where.trim(), tag, color, description: desc.trim(), image, crewId, maxParticipants: maxParticipants ? parseInt(maxParticipants, 10) : null, gender });
     onClose();
   };
   return (
@@ -623,6 +625,20 @@ const EventForm = ({ onClose, crewId }) => {
           {[['Social','peach'],['Wellness','mint'],['Learning','lavender'],['Crew','butter'],['Patient','navy'],['Volunteer','mint']].map(([t,c]) => (
             <button key={t} onClick={()=>{setTag(t);setColor(c);}} className={`pill ${tag===t?'pill-teal':''}`} style={{cursor:'pointer', border: tag===t?'1.5px solid var(--teal)':'1.5px solid var(--line)'}}>{t}</button>
           ))}
+        </div>
+        <div style={{display:'flex', gap:12}}>
+          <div style={{flex:1}}>
+            <label style={lbl}>Max participants (optional)</label>
+            <input className="input" type="number" min="1" value={maxParticipants} onChange={e=>setMaxParticipants(e.target.value)} placeholder="No limit" />
+          </div>
+          <div style={{flex:1}}>
+            <label style={lbl}>Open to</label>
+            <div style={{display:'flex', gap:6}}>
+              {[['all','Everyone'],['female','Female only'],['male','Male only']].map(([g,l]) => (
+                <button key={g} onClick={()=>setGender(g)} className={`pill ${gender===g?'pill-teal':''}`} style={{cursor:'pointer', border: gender===g?'1.5px solid var(--teal)':'1.5px solid var(--line)', fontSize:12}}>{l}</button>
+              ))}
+            </div>
+          </div>
         </div>
         <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:20}}>
           <button className="btn" onClick={onClose}>Cancel</button>
@@ -705,13 +721,14 @@ const EventsScreen = () => {
                 <div style={{display:'flex', gap:6, marginBottom:4}}>
                   <span className="pill" style={{fontSize:11}}>{e.tag}</span>
                   {e.day && <span className="pill pill-slate" style={{fontSize:11}}>{e.day}</span>}
+                  {e.gender && e.gender !== 'all' && <span className="pill pill-slate" style={{fontSize:11}}>{e.gender === 'female' ? 'Female only' : 'Male only'}</span>}
                 </div>
                 <div className="event-title">{e.title}</div>
                 {e.description && <div className="event-desc">{e.description}</div>}
                 <div className="event-detail">
                   <span><Icon name="clock" size={14}/> {e.time}</span>
                   {e.location && <span><Icon name="location" size={14}/> {e.location}</span>}
-                  <span><Icon name="crew" size={14}/> {Store.goingCount(e.id)} going</span>
+                  <span><Icon name="crew" size={14}/> {Store.goingCount(e.id)}{e.max_participants ? `/${e.max_participants}` : ''} going</span>
                 </div>
                 <div className="event-foot">
                   <span style={{display:'flex', gap:8, alignItems:'center', fontSize:13}}>
@@ -720,7 +737,7 @@ const EventsScreen = () => {
                   </span>
                   <div style={{display:'flex', gap:6}}>
                     {(e.host === Store.meId() || e.host === 'me' || Store.isAdmin()) && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
-                    <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : 'Going'}</button>
+                    <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} disabled={!Store.isGoing(e.id) && Store.isFull(e.id)} style={!Store.isGoing(e.id) && Store.isFull(e.id) ? {opacity:.5, cursor:'not-allowed'} : {}} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : Store.isFull(e.id) ? 'Full' : 'Going'}</button>
                   </div>
                 </div>
               </div>

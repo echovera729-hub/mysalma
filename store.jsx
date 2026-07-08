@@ -382,7 +382,7 @@ const Store = {
   crewEvents(crewId) { return this.events().filter(e => e.crew_id === crewId); },
   addEvent(ev) {
     const id = newId('ev');
-    const row = { id, host: _meId, title: ev.title, d: ev.d || null, m: ev.m || null, day: ev.day || null, time: ev.time || null, location: ev.where || ev.location || null, tag: ev.tag || null, color: ev.color || null, description: ev.description || '', image: ev.image || null, crew_id: ev.crewId || null, created_at: new Date().toISOString() };
+    const row = { id, host: _meId, title: ev.title, d: ev.d || null, m: ev.m || null, day: ev.day || null, time: ev.time || null, location: ev.where || ev.location || null, tag: ev.tag || null, color: ev.color || null, description: ev.description || '', image: ev.image || null, crew_id: ev.crewId || null, max_participants: ev.maxParticipants || null, gender: ev.gender || 'all', created_at: new Date().toISOString() };
     mutate(() => { cacheInsert('events', row); cacheInsert('event_rsvps', { event_id: id, user_id: _meId }); },
       async () => { await sb.from('events').insert(row); await sb.from('event_rsvps').insert({ event_id: id, user_id: _meId }); });
     return id;
@@ -395,10 +395,18 @@ const Store = {
   },
   isGoing(eventId) { return (_state.event_rsvps || []).some(r => r.event_id === eventId && r.user_id === _meId); },
   goingCount(eventId) { return (_state.event_rsvps || []).filter(r => r.event_id === eventId).length; },
+  isFull(eventId) {
+    const ev = (_state.events || []).find(e => e.id === eventId);
+    if (!ev || !ev.max_participants) return false;
+    return this.goingCount(eventId) >= ev.max_participants;
+  },
   toggleGoing(eventId) {
     const going = this.isGoing(eventId);
     if (going) mutate(() => cacheRemove('event_rsvps', r => r.event_id === eventId && r.user_id === _meId), () => sb.from('event_rsvps').delete().match({ event_id: eventId, user_id: _meId }));
-    else { const row = { event_id: eventId, user_id: _meId }; mutate(() => cacheInsert('event_rsvps', row), () => sb.from('event_rsvps').insert(row)); }
+    else {
+      if (this.isFull(eventId)) return;
+      const row = { event_id: eventId, user_id: _meId }; mutate(() => cacheInsert('event_rsvps', row), () => sb.from('event_rsvps').insert(row));
+    }
   },
 
   // ---------- crews ----------

@@ -49,13 +49,14 @@ const CrewEvents = ({ crewId }) => {
                 <div style={{display:'flex', gap:6, marginBottom:4}}>
                   <span className="pill" style={{fontSize:11}}>{e.tag}</span>
                   {e.day && <span className="pill pill-slate" style={{fontSize:11}}>{e.day}</span>}
+                  {e.gender && e.gender !== 'all' && <span className="pill pill-slate" style={{fontSize:11}}>{e.gender === 'female' ? 'Female only' : 'Male only'}</span>}
                 </div>
                 <div className="event-title">{e.title}</div>
                 {e.description && <div className="event-desc">{e.description}</div>}
                 <div className="event-detail">
                   <span><Icon name="clock" size={14}/> {e.time}</span>
                   {e.location && <span><Icon name="location" size={14}/> {e.location}</span>}
-                  <span><Icon name="crew" size={14}/> {Store.goingCount(e.id)} going</span>
+                  <span><Icon name="crew" size={14}/> {Store.goingCount(e.id)}{e.max_participants ? `/${e.max_participants}` : ''} going</span>
                 </div>
                 <div className="event-foot">
                   <span style={{display:'flex', gap:8, alignItems:'center', fontSize:13}}>
@@ -64,7 +65,7 @@ const CrewEvents = ({ crewId }) => {
                   </span>
                   <div style={{display:'flex', gap:6}}>
                     {(e.host === Store.meId() || Store.isAdmin()) && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
-                    <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : 'Going'}</button>
+                    <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} disabled={!Store.isGoing(e.id) && Store.isFull(e.id)} style={!Store.isGoing(e.id) && Store.isFull(e.id) ? {opacity:.5, cursor:'not-allowed'} : {}} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : Store.isFull(e.id) ? 'Full' : 'Going'}</button>
                   </div>
                 </div>
               </div>
