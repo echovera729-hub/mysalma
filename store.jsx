@@ -33,7 +33,7 @@ const _listeners = new Set();
 const DEFAULT_PROFILE = {
   id: 'me', name: 'You', role: 'Team member', team: 'PT', branch: 'Main',
   tagline: 'new here — say hi 👋', bio: '', avatar: null, cover: null,
-  status: 'approved', is_admin: false,
+  status: 'approved', is_admin: false, gender: null,
   shiftStatus: 'floor', floor: null,
   theme: {}, saved: {}, calendar_cover: null, settings: {},
 };
@@ -400,11 +400,18 @@ const Store = {
     if (!ev || !ev.max_participants) return false;
     return this.goingCount(eventId) >= ev.max_participants;
   },
+  // Mirrors the server-side check (trigger on event_rsvps) so the UI can
+  // explain *why* joining is blocked before the request round-trips.
+  genderBlocked(eventId) {
+    const ev = (_state.events || []).find(e => e.id === eventId);
+    if (!ev || !ev.gender || ev.gender === 'all') return false;
+    return (this.profile().gender || null) !== ev.gender;
+  },
   toggleGoing(eventId) {
     const going = this.isGoing(eventId);
     if (going) mutate(() => cacheRemove('event_rsvps', r => r.event_id === eventId && r.user_id === _meId), () => sb.from('event_rsvps').delete().match({ event_id: eventId, user_id: _meId }));
     else {
-      if (this.isFull(eventId)) return;
+      if (this.isFull(eventId) || this.genderBlocked(eventId)) return;
       const row = { event_id: eventId, user_id: _meId }; mutate(() => cacheInsert('event_rsvps', row), () => sb.from('event_rsvps').insert(row));
     }
   },

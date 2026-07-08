@@ -945,6 +945,14 @@ const SettingsScreen = ({ go }) => {
             {T('kudosPublic', 'Public Bright Spots', "Allow coworkers to send me kudos publicly. When off, Bright Spots naming you are hidden from the main feed.")}
             {T('capsuleReminders', 'Time Capsule reminders', 'Show the sealed-capsule reminder card on Home')}
             <div className="settings-row">
+              <div className="settings-row-info"><h4>Gender</h4><p>Used only to match you to gender-restricted events (e.g. female-only wellness sessions)</p></div>
+              <select className="input" style={{maxWidth:200}} value={prof.gender || ''} onChange={e=>Store.setProfile({gender: e.target.value || null})}>
+                <option value="">Prefer not to say</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+              </select>
+            </div>
+            <div className="settings-row">
               <div className="settings-row-info"><h4>Profile visibility</h4><p>Who can find you in Discover, chat, and crew invites</p></div>
               <select className="input" style={{maxWidth:200}} value={settings.profileVisibility} onChange={e=>Store.setSetting({profileVisibility:e.target.value})}>
                 <option value="hospital">Whole hospital</option>

@@ -65,7 +65,7 @@ const CrewEvents = ({ crewId }) => {
                   </span>
                   <div style={{display:'flex', gap:6}}>
                     {(e.host === Store.meId() || Store.isAdmin()) && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
-                    <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} disabled={!Store.isGoing(e.id) && Store.isFull(e.id)} style={!Store.isGoing(e.id) && Store.isFull(e.id) ? {opacity:.5, cursor:'not-allowed'} : {}} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : Store.isFull(e.id) ? 'Full' : 'Going'}</button>
+                    <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} disabled={!Store.isGoing(e.id) && (Store.isFull(e.id) || Store.genderBlocked(e.id))} style={!Store.isGoing(e.id) && (Store.isFull(e.id) || Store.genderBlocked(e.id)) ? {opacity:.5, cursor:'not-allowed'} : {}} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : Store.genderBlocked(e.id) ? 'Not eligible' : Store.isFull(e.id) ? 'Full' : 'Going'}</button>
                   </div>
                 </div>
               </div>
