@@ -304,7 +304,15 @@ const Store = {
       poll.options[optIdx].votes = [...poll.options[optIdx].votes, _meId];
       arr[i] = { ...arr[i], poll };
       _state.posts = [...arr];
-    }, () => sb.from('posts').update({ poll: (this.allPosts().find(p=>p.id===postId)||{}).poll }).eq('id', postId));
+    }, async () => {
+      // Cast via a security-definer RPC — voters don't have direct write
+      // access to posts they don't own, only its author does (see RLS).
+      const { data, error } = await sb.rpc('vote_poll', { p_post_id: postId, p_option_idx: optIdx });
+      if (error) throw error;
+      const arr2 = _state.posts || [];
+      const j = arr2.findIndex(p => p.id === postId);
+      if (j >= 0 && data) { arr2[j] = { ...arr2[j], poll: data }; _state.posts = [...arr2]; _emit(); }
+    });
   },
 
   // ---------- reactions ----------
