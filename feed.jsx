@@ -65,7 +65,7 @@ const Post = ({ post }) => {
                 <Icon name="bookmark"/> {saved ? 'Unsave' : 'Save post'}
               </button>
               <button className="post-foot-btn" style={{width:'100%', justifyContent:'flex-start', color:'#B05050'}} onClick={() => { Store.deletePost(id); setMenu(false); }}>
-                <Icon name="close"/> {isMine ? 'Delete' : 'Hide'} post
+                <Icon name="close"/> {(isMine || Store.isManager()) ? 'Delete' : 'Hide'} post
               </button>
             </div>
           )}
