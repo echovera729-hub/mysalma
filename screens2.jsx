@@ -490,7 +490,7 @@ const ChatScreen = () => {
               <Icon name="search" size={16}/>
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search people…" />
             </div>
-            <button className="btn btn-icon" title="New group chat" onClick={()=>setShowNewGroup(true)}><Icon name="plus" size={16}/></button>
+            <button className="btn btn-icon" title="New group chat" onClick={()=>setShowNewGroup(true)} style={!Store.isManager()?{display:'none'}:undefined}><Icon name="plus" size={16}/></button>
           </div>
           {convos.filter(c => !search.trim() || (c.id===Store.branchRoomId() ? Store.myBranch().toLowerCase().includes(search.trim().toLowerCase()) : (c.name||'').toLowerCase().includes(search.trim().toLowerCase()))).map(c => {
             const on = c.id === active;

@@ -51,20 +51,30 @@ const RejectedScreen = () => {
 //  ADMIN — member approvals
 // ─────────────────────────────────────────────────────────────
 const MemberRow = ({ m, actions }) => (
-  <div className="card card-pad" style={{display:'flex', alignItems:'center', gap:14, padding:'14px 16px'}}>
+  <div className="card card-pad member-row" style={{display:'flex', alignItems:'center', gap:14, padding:'14px 16px', flexWrap:'wrap'}}>
     <Avatar person={m} size="md" />
-    <div style={{flex:1, minWidth:0}}>
+    <div style={{flex:'1 1 140px', minWidth:0}}>
       <div style={{fontWeight:600, color:'var(--navy)', fontSize:14.5, display:'flex', alignItems:'center', gap:8}}>
         {m.name}
         {m.isAdmin && <span className="pill pill-teal" style={{fontSize:10.5}}>Admin</span>}
+        {!m.isAdmin && m.isCoAdmin && <span className="pill" style={{fontSize:10.5}}>Co-admin</span>}
       </div>
       <div style={{fontSize:12.5, color:'var(--ink-soft)'}}>{m.role || 'Team member'} · {(TEAMS[m.team]||{}).label || m.team}</div>
     </div>
-    <select className="input" style={{maxWidth:130, fontSize:12.5}} value={m.branch || 'Main'}
-      onChange={e=>Store.setMemberBranch(m.id, e.target.value)} title="Branch — only admins can change this">
-      {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
-    </select>
-    {actions}
+    <div className="member-row-controls" style={{display:'flex', alignItems:'center', gap:8, flexShrink:0, marginLeft:'auto'}}>
+      {Store.isAdmin() && !m.isAdmin && Store.meId() !== m.id && (
+        <button className={`btn btn-sm ${m.isCoAdmin ? '' : 'btn-ghost'}`}
+          onClick={()=>Store.setCoAdmin(m.id, !m.isCoAdmin)}
+          title="Co-admins can accept members, create events, manage crews, and start group chats">
+          {m.isCoAdmin ? '✓ Co-admin' : '+ Co-admin'}
+        </button>
+      )}
+      <select className="input" style={{width:110, flexShrink:0, fontSize:12.5}} value={m.branch || 'Main'}
+        onChange={e=>Store.setMemberBranch(m.id, e.target.value)} title="Branch — only admins can change this">
+        {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+      </select>
+      {actions}
+    </div>
   </div>
 );
 

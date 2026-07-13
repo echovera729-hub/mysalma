@@ -485,7 +485,7 @@ const CrewsScreen = () => {
           <div className="page-greet"><span className="hand">find your people</span></div>
           <h1 className="page-title">Crews</h1>
         </div>
-        <button className="btn btn-primary" onClick={()=>setCreating(c=>!c)}><Icon name="plus" size={16}/> Create a crew</button>
+        {Store.isManager() && <button className="btn btn-primary" onClick={()=>setCreating(c=>!c)}><Icon name="plus" size={16}/> Create a crew</button>}
       </div>
 
       <p style={{fontSize:14.5, color:'var(--ink-soft)', maxWidth:680, marginTop:-8, marginBottom:18, lineHeight:1.5}}>
@@ -547,7 +547,7 @@ const CrewsScreen = () => {
                 <button className="btn btn-sm" style={{alignSelf:'flex-start'}} onClick={()=>Store.joinCrew(c.id)}>+ Join</button>
               </div>
             ))}
-            {ideaCards.map(c => (
+            {Store.isManager() && ideaCards.map(c => (
               <div key={c.name} className="card card-pad" style={{display:'flex', flexDirection:'column', gap:10, cursor:'pointer'}} onClick={()=>Store.addCrew(c)}>
                 <div className="crew-icon" style={{width:48, height:48, fontSize:24}}>{c.emoji}</div>
                 <div style={{fontWeight:600, fontSize:14.5}}>{c.name}</div>
@@ -692,7 +692,7 @@ const EventsScreen = () => {
             <button className={`feed-tab ${view==='list'?'active':''}`} onClick={()=>setView('list')}>List</button>
             <button className={`feed-tab ${view==='calendar'?'active':''}`} onClick={()=>setView('calendar')}>Calendar</button>
           </div>
-          <button className="btn btn-primary" onClick={()=>setCreating(true)}><Icon name="plus" size={16}/> New event</button>
+          {Store.isManager() && <button className="btn btn-primary" onClick={()=>setCreating(true)}><Icon name="plus" size={16}/> New event</button>}
         </div>
       </div>
 
@@ -701,7 +701,7 @@ const EventsScreen = () => {
       {events.length === 0 ? (
         <EmptyState emoji="📅" title="No events yet"
           sub="Plan a potluck, a CEU session, a trail walk, a talent show — anything that brings the team together. Create the first one."
-          action="Create an event" onAction={()=>setCreating(true)} />
+          action={Store.isManager() ? "Create an event" : undefined} onAction={()=>setCreating(true)} />
       ) : view === 'list' ? (
         <div style={{display:'flex', flexDirection:'column', gap:14}}>
           {events.map(e => (

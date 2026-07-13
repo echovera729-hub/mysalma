@@ -389,6 +389,7 @@ const Store = {
   events() { return (_state.events || []).slice(); },
   crewEvents(crewId) { return this.events().filter(e => e.crew_id === crewId); },
   addEvent(ev) {
+    if (!this.isManager()) return; // creating events is an admin/co-admin action
     const id = newId('ev');
     const row = { id, host: _meId, title: ev.title, d: ev.d || null, m: ev.m || null, day: ev.day || null, time: ev.time || null, location: ev.where || ev.location || null, tag: ev.tag || null, color: ev.color || null, description: ev.description || '', image: ev.image || null, crew_id: ev.crewId || null, max_participants: ev.maxParticipants || null, gender: ev.gender || 'all', created_at: new Date().toISOString() };
     mutate(() => { cacheInsert('events', row); cacheInsert('event_rsvps', { event_id: id, user_id: _meId }); },
@@ -439,6 +440,7 @@ const Store = {
   addCrew(crew) {
     const existing = this.allCrews().find(c => c.name.toLowerCase() === crew.name.toLowerCase());
     if (existing) { this.joinCrew(existing.id); return existing.id; }
+    if (!this.isManager()) return null; // creating a NEW crew is an admin/co-admin action; joining an existing one stays open above
     const id = newId('cr');
     const row = { id, emoji: crew.emoji || '🌟', name: crew.name, description: crew.description || '', photo: crew.photo || null, created_by: _meId, created_at: new Date().toISOString() };
     mutate(() => { cacheInsert('crews', row); cacheInsert('crew_members', { crew_id: id, user_id: _meId }); },
@@ -503,6 +505,7 @@ const Store = {
   },
   isGroupOwner(id) { const g = this.groupById(id); return !!g && g.created_by === _meId; },
   createGroup(name, memberIds = []) {
+    if (!this.isManager()) return null; // starting group chats is an admin/co-admin action
     if (!name || !name.trim()) return null;
     const id = newId('grp');
     const branch = this.myBranch();
@@ -603,16 +606,28 @@ const Store = {
   // In local (single-user) mode the one user is always an approved admin so
   // nothing is gated and the admin screen can be previewed.
   isAdmin() { return SUPA ? !!this.profile().is_admin : true; },
+  isCoAdmin() { return SUPA ? !!this.profile().is_coadmin : false; },
+  // "manager" = admin OR co-admin — gates accept-members, create-events,
+  // manage-crews, start-group-chats. Assigning roles stays admin-only.
+  isManager() { return this.isAdmin() || this.isCoAdmin(); },
+  setCoAdmin(id, value) {
+    if (!this.isAdmin()) return; // only full admins can grant/revoke co-admin
+    mutate(
+      () => { const p = (_state.profiles || []).find(x => x.id === id); if (p) p.is_coadmin = value; },
+      () => sb.from('profiles').update({ is_coadmin: value }).eq('id', id)
+    );
+  },
   myStatus() { return SUPA ? (this.profile().status || 'pending') : 'approved'; },
   membersByStatus(status) {
     return (_state.profiles || [])
       .filter(p => (p.status || 'pending') === status)
-      .map(p => ({ ...personFor(p), status: p.status || 'pending', isAdmin: !!p.is_admin, created_at: p.created_at, branch: p.branch || 'Main' }))
+      .map(p => ({ ...personFor(p), status: p.status || 'pending', isAdmin: !!p.is_admin, isCoAdmin: !!p.is_coadmin, created_at: p.created_at, branch: p.branch || 'Main' }))
       .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
   },
   pendingCount() { return (_state.profiles || []).filter(p => (p.status || 'pending') === 'pending').length; },
   setMemberStatus(id, status) {
     if (id === _meId) return; // can't change your own status from the UI
+    if (!this.isManager()) return; // accepting/rejecting members is an admin/co-admin action
     mutate(
       () => {
         const arr = _state.profiles || [];
