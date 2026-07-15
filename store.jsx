@@ -398,9 +398,16 @@ const Store = {
   },
   deleteEvent(id) {
     const ev = (_state.events || []).find(e => e.id === id);
-    if (ev && ev.host !== _meId && !this.isAdmin()) return;
+    if (ev && ev.host !== _meId && !this.isManager()) return;
     mutate(() => { cacheRemove('events', e => e.id === id); cacheRemove('event_rsvps', r => r.event_id === id); },
       () => sb.from('events').delete().eq('id', id));
+  },
+  editEvent(id, patch) {
+    const ev = (_state.events || []).find(e => e.id === id);
+    if (!ev || (ev.host !== _meId && !this.isManager())) return;
+    const row = { title: patch.title, d: patch.d || null, m: patch.m || null, day: patch.day || null, time: patch.time || null, location: patch.where || patch.location || null, tag: patch.tag || null, color: patch.color || null, description: patch.description || '', image: patch.image || null, max_participants: patch.maxParticipants || null, gender: patch.gender || 'all' };
+    mutate(() => { const i = (_state.events||[]).findIndex(e=>e.id===id); if (i>=0) _state.events[i] = { ..._state.events[i], ...row }; },
+      () => sb.from('events').update(row).eq('id', id));
   },
   isGoing(eventId) { return (_state.event_rsvps || []).some(r => r.event_id === eventId && r.user_id === _meId); },
   goingCount(eventId) { return (_state.event_rsvps || []).filter(r => r.event_id === eventId).length; },

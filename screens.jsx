@@ -564,18 +564,18 @@ const CrewsScreen = () => {
 // ============================================================
 //  EVENTS — create & RSVP
 // ============================================================
-const EventForm = ({ onClose, crewId }) => {
-  const [title, setTitle] = useState2('');
-  const [date, setDate] = useState2('');
-  const [time, setTime] = useState2('');
-  const [where, setWhere] = useState2('');
-  const [desc, setDesc] = useState2('');
-  const [image, setImage] = useState2(null);
+const EventForm = ({ onClose, crewId, editing }) => {
+  const [title, setTitle] = useState2(editing ? editing.title || '' : '');
+  const [date, setDate] = useState2(editing && editing.d && editing.m ? isoFromEventParts(editing) : '');
+  const [time, setTime] = useState2(editing ? (editing.time === 'TBD' ? '' : editing.time || '') : '');
+  const [where, setWhere] = useState2(editing ? editing.location || '' : '');
+  const [desc, setDesc] = useState2(editing ? editing.description || '' : '');
+  const [image, setImage] = useState2(editing ? editing.image || null : null);
   const [uploading, setUploading] = useState2(false);
-  const [tag, setTag] = useState2('Social');
-  const [color, setColor] = useState2('peach');
-  const [maxParticipants, setMaxParticipants] = useState2('');
-  const [gender, setGender] = useState2('all');
+  const [tag, setTag] = useState2(editing ? editing.tag || 'Social' : 'Social');
+  const [color, setColor] = useState2(editing ? editing.color || 'peach' : 'peach');
+  const [maxParticipants, setMaxParticipants] = useState2(editing && editing.max_participants ? String(editing.max_participants) : '');
+  const [gender, setGender] = useState2(editing ? editing.gender || 'all' : 'all');
   const fileRef = React.useRef(null);
   const lbl = { display:'block', fontSize:12.5, fontWeight:600, color:'var(--ink-soft)', margin:'14px 0 6px' };
   const pickImage = async (file) => {
@@ -588,14 +588,16 @@ const EventForm = ({ onClose, crewId }) => {
     if (!title.trim()) return;
     let d = '', m = 'MAY', day = '';
     if (date) { const dt = new Date(date + 'T00:00'); d = dt.getDate(); m = dt.toLocaleDateString([], {month:'short'}).toUpperCase(); day = dt.toLocaleDateString([], {weekday:'long'}); }
-    Store.addEvent({ title: title.trim(), d, m, day, time: time || 'TBD', where: where.trim(), tag, color, description: desc.trim(), image, crewId, maxParticipants: maxParticipants ? parseInt(maxParticipants, 10) : null, gender });
+    const payload = { title: title.trim(), d, m, day, time: time || 'TBD', where: where.trim(), tag, color, description: desc.trim(), image, crewId, maxParticipants: maxParticipants ? parseInt(maxParticipants, 10) : null, gender };
+    if (editing) Store.editEvent(editing.id, payload);
+    else Store.addEvent(payload);
     onClose();
   };
   return (
     <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:200}} onClick={onClose}>
       <div className="modal-sheet" style={{width:'min(520px,100%)', maxHeight:'90vh', overflow:'auto', background:'var(--cream)', borderRadius:24, padding:28, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
-          <h2 style={{fontSize:22}}>New event</h2>
+          <h2 style={{fontSize:22}}>{editing ? 'Edit event' : 'New event'}</h2>
           <button className="btn btn-icon btn-ghost" onClick={onClose}><Icon name="close"/></button>
         </div>
         <label style={lbl}>Event image (optional)</label>
@@ -642,12 +644,22 @@ const EventForm = ({ onClose, crewId }) => {
         </div>
         <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:20}}>
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={!title.trim()} style={!title.trim()?{opacity:.5}:{}} onClick={submit}>Create event</button>
+          <button className="btn btn-primary" disabled={!title.trim()} style={!title.trim()?{opacity:.5}:{}} onClick={submit}>{editing ? 'Save changes' : 'Create event'}</button>
         </div>
       </div>
     </div>
   );
 };
+
+function isoFromEventParts(e) {
+  // best-effort reconstruct a yyyy-mm-dd for the date input from stored {d, m} — year is unknown, so use the current year
+  const months = {JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
+  const mi = months[(e.m || '').toUpperCase()];
+  if (mi === undefined || !e.d) return '';
+  const now = new Date();
+  const dt = new Date(now.getFullYear(), mi, parseInt(e.d, 10));
+  return dt.toISOString().slice(0, 10);
+}
 
 const CalendarBanner = () => {
   useStore();
@@ -678,6 +690,7 @@ const CalendarBanner = () => {
 const EventsScreen = () => {
   const [view, setView] = useState2('list');
   const [creating, setCreating] = useState2(false);
+  const [editing, setEditing] = useState2(null);
   useStore();
   const events = Store.events().slice().sort((a,b)=>(a.d||99)-(b.d||99));
   return (
@@ -736,7 +749,8 @@ const EventsScreen = () => {
                     <span className="muted">hosted by <strong style={{color:'var(--navy)'}}>{e.host === Store.meId() || e.host === 'me' ? 'you' : (FIND(e.host)||{}).first || 'a teammate'}</strong></span>
                   </span>
                   <div style={{display:'flex', gap:6}}>
-                    {(e.host === Store.meId() || e.host === 'me' || Store.isAdmin()) && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
+                    {(e.host === Store.meId() || e.host === 'me' || Store.isManager()) && <button className="btn btn-sm btn-ghost" onClick={()=>setEditing(e)}>Edit</button>}
+                    {(e.host === Store.meId() || e.host === 'me' || Store.isManager()) && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
                     <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} disabled={!Store.isGoing(e.id) && (Store.isFull(e.id) || Store.genderBlocked(e.id))} style={!Store.isGoing(e.id) && (Store.isFull(e.id) || Store.genderBlocked(e.id)) ? {opacity:.5, cursor:'not-allowed'} : {}} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : Store.genderBlocked(e.id) ? 'Not eligible' : Store.isFull(e.id) ? 'Full' : 'Going'}</button>
                   </div>
                 </div>
@@ -779,6 +793,7 @@ const EventsScreen = () => {
         </div>
       )}
       {creating && <EventForm onClose={()=>setCreating(false)} />}
+      {editing && <EventForm editing={editing} crewId={editing.crew_id} onClose={()=>setEditing(null)} />}
     </>
   );
 };

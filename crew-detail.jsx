@@ -30,6 +30,7 @@ const CrewWall = ({ crewId }) => {
 const CrewEvents = ({ crewId }) => {
   useStore();
   const [creating, setCreating] = useStateCrew(false);
+  const [editing, setEditing] = useStateCrew(null);
   const events = Store.crewEvents(crewId).slice().sort((a,b)=>(a.d||99)-(b.d||99));
   return (
     <>
@@ -64,7 +65,8 @@ const CrewEvents = ({ crewId }) => {
                     <span className="muted">hosted by <strong style={{color:'var(--navy)'}}>{e.host === Store.meId() ? 'you' : (FIND(e.host)||{}).first || 'a teammate'}</strong></span>
                   </span>
                   <div style={{display:'flex', gap:6}}>
-                    {(e.host === Store.meId() || Store.isAdmin()) && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
+                    {(e.host === Store.meId() || Store.isManager()) && <button className="btn btn-sm btn-ghost" onClick={()=>setEditing(e)}>Edit</button>}
+                    {(e.host === Store.meId() || Store.isManager()) && <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.deleteEvent(e.id)}>Delete</button>}
                     <button className={`btn btn-sm ${Store.isGoing(e.id) ? '' : 'btn-primary'}`} disabled={!Store.isGoing(e.id) && (Store.isFull(e.id) || Store.genderBlocked(e.id))} style={!Store.isGoing(e.id) && (Store.isFull(e.id) || Store.genderBlocked(e.id)) ? {opacity:.5, cursor:'not-allowed'} : {}} onClick={() => Store.toggleGoing(e.id)}>{Store.isGoing(e.id) ? '✓ Going' : Store.genderBlocked(e.id) ? 'Not eligible' : Store.isFull(e.id) ? 'Full' : 'Going'}</button>
                   </div>
                 </div>
@@ -74,6 +76,7 @@ const CrewEvents = ({ crewId }) => {
         </div>
       )}
       {creating && <EventForm crewId={crewId} onClose={()=>setCreating(false)} />}
+      {editing && <EventForm editing={editing} crewId={crewId} onClose={()=>setEditing(null)} />}
     </>
   );
 };
