@@ -379,7 +379,8 @@ const MemberProfileModal = ({ go }) => {
               </div>
             </div>
             <div style={{display:'flex', gap:8, paddingBottom:8}}>
-              <button className="btn btn-primary" onClick={()=>{ close(); go && go('chat'); }}><Icon name="chat" size={16}/> Message</button>
+              <button className={`btn ${Store.isFollowing(id) ? '' : 'btn-primary'}`} onClick={()=>Store.toggleFollow(id)}>{Store.isFollowing(id) ? '✓ Following' : 'Follow'}</button>
+              <button className="btn" onClick={()=>{ close(); go && go('chat'); }}><Icon name="chat" size={16}/> Message</button>
               <button className="btn btn-icon btn-ghost" onClick={close}><Icon name="close"/></button>
             </div>
           </div>

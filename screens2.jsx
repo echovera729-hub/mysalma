@@ -629,13 +629,13 @@ const SearchScreen = ({ go }) => {
               {mates.map(m => {
                 const following = Store.isFollowing(m.id);
                 return (
-                  <div key={m.id} className="crew-row" style={{cursor:'default'}}>
+                  <div key={m.id} className="crew-row" style={{cursor:'pointer'}} onClick={()=>Store.viewProfile(m.id)}>
                     <Avatar person={m} size="md" />
                     <div className="crew-info">
                       <div className="crew-name">{m.name}</div>
                       <div className="crew-meta">{m.role || (TEAMS[m.team]||{}).label}</div>
                     </div>
-                    <button className={`btn btn-sm ${following ? '' : 'btn-primary'}`} onClick={()=>Store.toggleFollow(m.id)}>{following ? '✓ Following' : 'Follow'}</button>
+                    <button className={`btn btn-sm ${following ? '' : 'btn-primary'}`} onClick={(e)=>{e.stopPropagation(); Store.toggleFollow(m.id);}}>{following ? '✓ Following' : 'Follow'}</button>
                   </div>
                 );
               })}
