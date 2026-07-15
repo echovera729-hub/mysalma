@@ -52,8 +52,8 @@ const RejectedScreen = () => {
 // ─────────────────────────────────────────────────────────────
 const MemberRow = ({ m, actions }) => (
   <div className="card card-pad member-row" style={{display:'flex', alignItems:'center', gap:14, padding:'14px 16px', flexWrap:'wrap'}}>
-    <Avatar person={m} size="md" />
-    <div style={{flex:'1 1 140px', minWidth:0}}>
+    <div style={{cursor: m.id===Store.meId() ? 'default' : 'pointer'}} onClick={()=>Store.viewProfile(m.id)}><Avatar person={m} size="md" /></div>
+    <div style={{flex:'1 1 140px', minWidth:0, cursor: m.id===Store.meId() ? 'default' : 'pointer'}} onClick={()=>Store.viewProfile(m.id)}>
       <div style={{fontWeight:600, color:'var(--navy)', fontSize:14.5, display:'flex', alignItems:'center', gap:8}}>
         {m.name}
         {m.isAdmin && <span className="pill pill-teal" style={{fontSize:10.5}}>Admin</span>}

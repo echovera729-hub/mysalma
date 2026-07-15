@@ -346,6 +346,76 @@ const ProfileEditor = ({ onClose }) => {
   );
 };
 
+// ============================================================
+//  MEMBER PROFILE — read-only viewer modal for teammates
+// ============================================================
+const MemberProfileModal = ({ go }) => {
+  useStore();
+  const id = Store.viewingProfileId();
+  const [tab, setTab] = useState2('moments');
+  if (!id) return null;
+  const person = Store.personById(id);
+  if (!person) return null;
+  const posts = Store.postsByAuthor(id);
+  const crews = Store.allCrews().filter(c => Store.crewMembers(c.id).some(m => m.id === id));
+  const close = () => { Store.closeProfile(); setTab('moments'); };
+  return (
+    <div className="modal-overlay" style={{position:'fixed', inset:0, background:'rgba(20,36,71,.55)', backdropFilter:'blur(8px)', display:'grid', placeItems:'center', padding:20, zIndex:250}} onClick={close}>
+      <div className="modal-sheet" style={{width:'min(640px,100%)', maxHeight:'88vh', overflow:'auto', background:'var(--cream)', borderRadius:24, border:'1px solid var(--line)', boxShadow:'0 30px 60px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
+        {person.cover
+          ? <div className="cover" style={{background:`url(${person.cover}) center/cover`, borderRadius:'24px 24px 0 0'}}></div>
+          : <ImgPh tone="teal" label="COVER" className="cover" style={{borderRadius:'24px 24px 0 0'}} />}
+        <div style={{padding:'0 24px 24px'}}>
+          <div className="profile-head" style={{padding:0}}>
+            <Avatar person={person} size="xl" />
+            <div className="profile-info">
+              <div className="profile-name">{person.name}</div>
+              <div className="profile-role">
+                <TeamPill team={person.team} />
+                <span className="pill pill-slate">{person.role}</span>
+                {person.isAdmin && <span className="pill pill-teal">Admin</span>}
+                {!person.isAdmin && person.isCoAdmin && <span className="pill">Co-admin</span>}
+                {person.tagline && <span style={{fontFamily:'var(--font-hand)', color:'var(--teal-deep)', fontSize:18}}>"{person.tagline}"</span>}
+              </div>
+            </div>
+            <div style={{display:'flex', gap:8, paddingBottom:8}}>
+              <button className="btn btn-primary" onClick={()=>{ close(); go && go('chat'); }}><Icon name="chat" size={16}/> Message</button>
+              <button className="btn btn-icon btn-ghost" onClick={close}><Icon name="close"/></button>
+            </div>
+          </div>
+          {person.bio && <p style={{fontSize:14, color:'var(--ink-soft)', lineHeight:1.5, marginTop:-4}}>{person.bio}</p>}
+
+          <div className="profile-tabs">
+            {['moments','crews'].map(t => (
+              <div key={t} className={`profile-tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
+                {t[0].toUpperCase()+t.slice(1)}
+              </div>
+            ))}
+          </div>
+
+          <div style={{display:'flex', flexDirection:'column', gap:14, marginTop:14}}>
+            {tab === 'moments' && (posts.length ? posts.map(p => <Post key={p.id} post={p} />) : (
+              <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>No moments shared yet.</div>
+            ))}
+            {tab === 'crews' && (crews.length ? (
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                {crews.map(c => (
+                  <div key={c.id} className="card card-pad" style={{display:'flex', gap:12, alignItems:'center'}}>
+                    <div className="crew-icon" style={{width:44, height:44, fontSize:20}}>{c.emoji}</div>
+                    <div style={{fontWeight:600, fontSize:14}}>{c.name}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="card card-pad" style={{textAlign:'center', color:'var(--ink-soft)'}}>Not in any crews yet.</div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ProfileScreen = () => {
   useStore();
   const prof = Store.profile();
@@ -744,7 +814,7 @@ const EventsScreen = () => {
                   <span><Icon name="crew" size={14}/> {Store.goingCount(e.id)}{e.max_participants ? `/${e.max_participants}` : ''} going</span>
                 </div>
                 <div className="event-foot">
-                  <span style={{display:'flex', gap:8, alignItems:'center', fontSize:13}}>
+                  <span style={{display:'flex', gap:8, alignItems:'center', fontSize:13, cursor:'pointer'}} onClick={()=>Store.viewProfile(e.host)}>
                     <Avatar person={FIND(e.host)} size="sm" />
                     <span className="muted">hosted by <strong style={{color:'var(--navy)'}}>{e.host === Store.meId() || e.host === 'me' ? 'you' : (FIND(e.host)||{}).first || 'a teammate'}</strong></span>
                   </span>
@@ -799,6 +869,6 @@ const EventsScreen = () => {
 };
 
 Object.assign(window, {
-  AuxRail, HomeScreen, ProfileScreen, CrewsScreen, EventsScreen,
+  AuxRail, HomeScreen, ProfileScreen, MemberProfileModal, CrewsScreen, EventsScreen,
   AuxSpotlight, AuxEvents, AuxCrews, AuxCapsule, AuxPulse,
 });

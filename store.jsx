@@ -29,6 +29,7 @@ let _meId = 'me';
 let _authed = !SUPA;        // local mode is always "authed"
 let _inited = false;
 const _listeners = new Set();
+let _viewingProfileId = null;
 
 const DEFAULT_PROFILE = {
   id: 'me', name: 'You', role: 'Team member', team: 'PT', branch: 'Main',
@@ -221,6 +222,10 @@ const Store = {
   async signOut() { if (sb) await sb.auth.signOut(); _authed = false; _meId = 'me'; _state = blankState(); _emit(); },
 
   // ---------- identity ----------
+  // Transient (not persisted) "which teammate's profile is open in the viewer modal" state.
+  viewProfile(id) { if (id && id !== 'me' && id !== _meId) { _viewingProfileId = id; _emit(); } },
+  closeProfile() { _viewingProfileId = null; _emit(); },
+  viewingProfileId() { return _viewingProfileId; },
   personById(id) {
     const realId = (id === 'me' || id === 'sara') ? _meId : id;
     const row = profileRow(realId);
@@ -247,6 +252,7 @@ const Store = {
     return (_state.posts || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   },
   myPosts() { return this.allPosts().filter(p => p.author === _meId); },
+  postsByAuthor(id) { return this.allPosts().filter(p => p.author === id); },
   crewPosts(crewId) { return this.allPosts().filter(p => p.crew_id === crewId); },
   // Feed-visible posts: honors each person's "Public Bright Spots" setting and
   // the viewer's own "Bright Spot notifications" mute — both are account-level.

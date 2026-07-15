@@ -44,9 +44,9 @@ const Post = ({ post }) => {
   return (
     <article className="post" style={wrapStyle}>
       <div className="post-header">
-        <Avatar person={author} size="md" />
+        <div style={isMine ? undefined : {cursor:'pointer'}} onClick={isMine ? undefined : () => Store.viewProfile(post.author)}><Avatar person={author} size="md" /></div>
         <div className="post-meta">
-          <div className="post-author">{author.name.replace(' (You)','')}{isMine && <span style={{fontWeight:400, color:'var(--ink-mute)', fontSize:12}}> · you</span>}</div>
+          <div className="post-author" style={isMine ? undefined : {cursor:'pointer'}} onClick={isMine ? undefined : () => Store.viewProfile(post.author)}>{author.name.replace(' (You)','')}{isMine && <span style={{fontWeight:400, color:'var(--ink-mute)', fontSize:12}}> · you</span>}</div>
           <div className="post-sub">
             <TeamPill team={author.team} mini />
             <span className="dot"></span>

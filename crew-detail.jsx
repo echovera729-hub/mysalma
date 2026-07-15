@@ -60,7 +60,7 @@ const CrewEvents = ({ crewId }) => {
                   <span><Icon name="crew" size={14}/> {Store.goingCount(e.id)}{e.max_participants ? `/${e.max_participants}` : ''} going</span>
                 </div>
                 <div className="event-foot">
-                  <span style={{display:'flex', gap:8, alignItems:'center', fontSize:13}}>
+                  <span style={{display:'flex', gap:8, alignItems:'center', fontSize:13, cursor:'pointer'}} onClick={()=>Store.viewProfile(e.host)}>
                     <Avatar person={FIND(e.host)} size="sm" />
                     <span className="muted">hosted by <strong style={{color:'var(--navy)'}}>{e.host === Store.meId() ? 'you' : (FIND(e.host)||{}).first || 'a teammate'}</strong></span>
                   </span>
@@ -196,14 +196,14 @@ const CrewDetailScreen = ({ crewId, onBack }) => {
       {tab === 'members' && (
         <div style={{display:'flex', flexDirection:'column', gap:2}}>
           {members.map(m => (
-            <div key={m.id} className="crew-row" style={{cursor:'default'}}>
+            <div key={m.id} className="crew-row" style={{cursor: m.id===Store.meId() ? 'default' : 'pointer'}} onClick={() => Store.viewProfile(m.id)}>
               <Avatar person={m} size="md" />
               <div className="crew-info">
                 <div className="crew-name">{m.name}{m.id===Store.meId() && ' (you)'}</div>
                 <div className="crew-meta">{m.role}{crew.created_by===m.id ? ' · Crew owner' : ''}</div>
               </div>
               {owner && m.id !== Store.meId() && (
-                <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={()=>Store.removeCrewMember(crewId, m.id)}>Remove</button>
+                <button className="btn btn-sm btn-ghost" style={{color:'#B05050'}} onClick={(e)=>{e.stopPropagation(); Store.removeCrewMember(crewId, m.id);}}>Remove</button>
               )}
             </div>
           ))}

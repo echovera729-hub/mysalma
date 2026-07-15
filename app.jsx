@@ -300,6 +300,7 @@ const App = () => {
       </div>
 
       {composeType && <ComposerScreen initialType={composeType} onClose={() => setComposeType(null)} />}
+      <MemberProfileModal go={setPage} />
       <TweaksUI t={t} set={set} />
       {Store.mode === 'supabase' && Store.syncError() && (
         <div style={{position:'fixed', bottom:20, left:'50%', transform:'translateX(-50%)', zIndex:400,
