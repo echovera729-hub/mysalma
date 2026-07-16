@@ -439,7 +439,17 @@ const Store = {
   },
 
   // ---------- crews ----------
-  allCrews() { return (_state.crews || []).slice(); },
+  allCrews() {
+    // De-dupe by name (case-insensitive) — keeps the earliest-created row.
+    // Guards against duplicate crew rows created by races/retries.
+    const seen = new Map();
+    for (const c of (_state.crews || [])) {
+      const key = (c.name || '').trim().toLowerCase();
+      const prev = seen.get(key);
+      if (!prev || new Date(c.created_at) < new Date(prev.created_at)) seen.set(key, c);
+    }
+    return [...seen.values()];
+  },
   crewById(id) { return this.allCrews().find(c => c.id === id) || null; },
   crews() { const ids = (_state.crew_members || []).filter(m => m.user_id === _meId).map(m => m.crew_id); return this.allCrews().filter(c => ids.includes(c.id)); },
   discoverCrews() { const ids = (_state.crew_members || []).filter(m => m.user_id === _meId).map(m => m.crew_id); return this.allCrews().filter(c => !ids.includes(c.id)); },
